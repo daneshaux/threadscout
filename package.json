@@ -21,7 +21,7 @@
     "@devvit/web": "^0.12.22-next-2026-04-30-23-14-22-5897840ca.0",
     "@hono/node-server": "^1.19.9",
     "clsx": "2.1.1",
-    "hono": "4.11.7",
+    "hono": "4.12.16",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tailwind-merge": "3.4.0"
