@@ -1,0 +1,41 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "threadscout",
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
+ "permissions": {
+    "reddit": {
+      "enable": true
+    },
+    "redis": true,
+    "http": {
+      "enable": true,
+      "domains": ["www.reddit.com"]
+    }
+  },
+  "triggers": {
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onPostSubmit": "/internal/triggers/on-post-submit"
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "dev": {
+    "subreddit": "threadscout_dev"
+  },
+  "menu": {
+    "items": [
+      {
+        "label": "ThreadScout: Test Comment",
+        "description": "Test whether ThreadScout can comment on a post.",
+        "forUserType": "moderator",
+        "location": ["post"],
+        "endpoint": "/internal/menu/test-comment",
+        "postFilter": "none"
+      }
+    ]
+  }
+}
