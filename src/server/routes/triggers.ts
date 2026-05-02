@@ -2,7 +2,11 @@ import { Hono } from 'hono';
 import { reddit, redis } from '@devvit/web/server';
 import { calculateSimilarity } from '../core/similarity';
 import { saveDuplicateCase } from '../core/duplicateCases';
-import { generateDuplicateExplanation } from '../core/ai';
+import {
+  generateDuplicateExplanation,
+  getEmbedding,
+  cosineSimilarity,
+} from '../core/ai';
 
 import {
   getThreadScoutSettings,
@@ -18,7 +22,9 @@ type IndexedPost = {
   text: string;
   permalink?: string;
   createdAt?: number;
+  embedding?: number[];
 };
+
 const REDIS_KEY = 'threadscout:posts';
 
 async function getIndexedPostsFromRedis(): Promise<IndexedPost[]> {
@@ -116,95 +122,157 @@ triggers.post('/on-post-submit', async (c) => {
     return now - createdAtMs <= lookbackMs;
   });
 
-  const matches = candidates.map((post) => {
-    const similarity = calculateSimilarity(newPostText, post.text);
+  let redisIndexChanged = false;
+  let newPostEmbedding: number[] = [];
 
-    return {
-      id: post.id,
-      title: post.title,
-      permalink: post.permalink,
-      score: similarity.score,
-      matchedWords: similarity.matchedWords,
-    };
-  });
+  try {
+    newPostEmbedding = await getEmbedding(newPostText);
+    console.log('🧠 Generated embedding for new post.');
+  } catch (error) {
+    console.error('❌ Failed to generate new post embedding:', error);
+  }
 
-const bestMatch =
-  matches.length > 0
-    ? matches.sort((a, b) => b.score - a.score)[0]
-    : undefined;
+  const matches = await Promise.all(
+    candidates.map(async (post) => {
+      const keywordSimilarity = calculateSimilarity(newPostText, post.text);
 
-const isLikelyDuplicate =
-  !!bestMatch && bestMatch.score >= similarityThreshold;
+      let embeddingStatus = 'not_used';
+
+      let semanticPercent = 0;
+
+      if (newPostEmbedding.length > 0) {
+        try {
+          let existingPostEmbedding = post.embedding;
+
+          if (!existingPostEmbedding || existingPostEmbedding.length === 0) {
+            existingPostEmbedding = await getEmbedding(post.text);
+            post.embedding = existingPostEmbedding;
+            redisIndexChanged = true;
+
+            embeddingStatus = 'created_and_cached';
+          } else {
+            embeddingStatus = 'reused_from_cache';
+          }
+
+          const semanticScore = cosineSimilarity(
+            newPostEmbedding,
+            existingPostEmbedding
+          );
+
+          semanticPercent = Math.round(semanticScore * 100);
+        } catch (error) {
+          embeddingStatus = 'failed';
+          console.error('❌ Failed to get candidate embedding:', error);
+        }
+      }
+
+      const finalScore = Math.max(keywordSimilarity.score, semanticPercent);
+
+      console.log('📊 Candidate checked:', {
+        id: post.id,
+        title: post.title,
+        keywordScore: keywordSimilarity.score,
+        semanticScore: semanticPercent,
+        finalScore,
+        embedding: post.embedding ? 'cached/reused' : 'missing',
+        embeddingStatus,
+      });
+
+      return {
+        id: post.id,
+        title: post.title,
+        permalink: post.permalink,
+        score: finalScore,
+        keywordScore: keywordSimilarity.score,
+        semanticScore: semanticPercent,
+        matchedWords: keywordSimilarity.matchedWords,
+        embeddingStatus,
+      };
+    })
+  );
+
+  const bestMatch =
+    matches.length > 0
+      ? matches.sort((a, b) => b.score - a.score)[0]
+      : undefined;
+
+  const isLikelyDuplicate =
+    !!bestMatch && bestMatch.score >= similarityThreshold;
 
   console.log('🧠 ThreadScout best match:');
   console.log(bestMatch ?? 'No indexed posts to compare yet.');
 
   if (isLikelyDuplicate && bestMatch) {
-  console.log('🚨 Possible duplicate detected!');
+    console.log('🚨 Possible duplicate detected!');
 
-  let aiExplanation = '';
+    let aiExplanation = '';
 
-  try {
-    aiExplanation = await generateDuplicateExplanation(
-      newPostText,
-      `${bestMatch.title}`
-    );
-
-    console.log('🤖 AI duplicate explanation generated:', aiExplanation);
-  } catch (error) {
-    console.error('❌ Failed to generate AI explanation:', error);
-  }
-
-  // ✅ Create duplicate case
-  await saveDuplicateCase({
-    id: `${newPost.id}:${bestMatch.id}`,
-
-    duplicatePostId: newPost.id,
-    duplicateTitle: newPost.title ?? '',
-    duplicatePermalink: newPost.permalink,
-
-    originalPostId: bestMatch.id,
-    originalTitle: bestMatch.title,
-    originalPermalink: bestMatch.permalink,
-
-    similarityScore: bestMatch.score,
-    aiExplanation,
-
-    subredditName,
-    createdAt: Date.now(),
-
-    status: "pending",
-  });
-
-  console.log('📦 Saved duplicate case to Redis');
-
-  // Keep your existing auto-comment behavior
-  if (settings.actionMode === 'comment_only') {
     try {
-      await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
-      console.log('💬 ThreadScout auto-comment posted.');
+      aiExplanation = await generateDuplicateExplanation(
+        newPostText,
+        `${bestMatch.title}`
+      );
+
+      console.log('🤖 AI duplicate explanation generated:', aiExplanation);
     } catch (error) {
-      console.error('❌ Failed to post auto-comment:', error);
+      console.error('❌ Failed to generate AI explanation:', error);
+    }
+
+    await saveDuplicateCase({
+      id: `${newPost.id}:${bestMatch.id}`,
+
+      duplicatePostId: newPost.id,
+      duplicateTitle: newPost.title ?? '',
+      duplicatePermalink: newPost.permalink,
+
+      originalPostId: bestMatch.id,
+      originalTitle: bestMatch.title,
+      originalPermalink: bestMatch.permalink,
+
+      similarityScore: bestMatch.score,
+      aiExplanation,
+
+      subredditName,
+      createdAt: Date.now(),
+
+      status: 'pending',
+    });
+
+    console.log('📦 Saved duplicate case to Redis');
+
+    if (settings.actionMode === 'comment_only') {
+      try {
+        await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
+        console.log('💬 ThreadScout auto-comment posted.');
+      } catch (error) {
+        console.error('❌ Failed to post auto-comment:', error);
+      }
+    }
+
+    if (settings.actionMode === 'flag_only') {
+      console.log(
+        '🏷️ Flag-only mode: case saved for mod review. No automatic action taken.'
+      );
     }
   }
 
-  if (settings.actionMode === 'flag_only') {
-    console.log('🏷️ Flag-only mode: case saved for mod review. No automatic action taken.');
-  }
-}
-
-const updatedPosts = [
+  const updatedPosts = [
     {
       id: newPost.id,
       title: newPost.title ?? '',
       text: newPostText,
       permalink: newPost.permalink,
       createdAt: newPost.createdAt,
+      embedding: newPostEmbedding.length > 0 ? newPostEmbedding : undefined,
     },
     ...indexedPosts,
-  ].slice(0, 100); // keep max 100
+  ].slice(0, 100);
 
   await savePostsToRedis(updatedPosts);
+
+  if (redisIndexChanged) {
+    console.log('🧠 Updated Redis index with newly cached candidate embeddings.');
+  }
 
   console.log('✅ Saved new post to Redis index');
   console.log('🧠 ThreadScout updated Redis index');
