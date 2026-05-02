@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { reddit, redis } from '@devvit/web/server';
 import { calculateSimilarity } from '../core/similarity';
+import { saveDuplicateCase } from '../core/duplicateCases';
 
 export const triggers = new Hono();
 
@@ -73,6 +74,13 @@ triggers.post('/on-post-submit', async (c) => {
     return c.json({ status: 'error', message: 'Missing post data' }, 400);
   }
 
+  if (newPost.title === 'ThreadScout Dashboard') {
+    console.log('🧭 Skipping ThreadScout Dashboard post.');
+    return c.json({
+      status: 'success',
+      message: 'Skipped ThreadScout Dashboard post',
+    });
+  }
 
   const newPostText = `${newPost.title ?? ''} ${newPost.selftext ?? ''}`.trim();
 
@@ -109,21 +117,41 @@ const isLikelyDuplicate =
   console.log('🧠 ThreadScout best match:');
   console.log(bestMatch ?? 'No indexed posts to compare yet.');
 
-  if (ENABLE_AUTOCOMMENTS && isLikelyDuplicate && bestMatch) {
-      console.log('🚨 Possible duplicate detected!');
-      console.log(`Matched post: ${bestMatch.title}`);
-      console.log(`Score: ${bestMatch.score}%`);
-      console.log(`Link: ${bestMatch.permalink}`);
+  if (isLikelyDuplicate && bestMatch) {
+  console.log('🚨 Possible duplicate detected!');
 
-      try {
-        await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
-        console.log('💬 ThreadScout comment posted.');
-      } catch (error) {
-        console.error('❌ Failed to post ThreadScout comment:', error);
-      }
-    } else {
-      console.log('✅ No duplicate detected.');
+  // ✅ Create duplicate case
+  await saveDuplicateCase({
+    id: `${newPost.id}:${bestMatch.id}`,
+
+    duplicatePostId: newPost.id,
+    duplicateTitle: newPost.title ?? '',
+    duplicatePermalink: newPost.permalink,
+
+    originalPostId: bestMatch.id,
+    originalTitle: bestMatch.title,
+    originalPermalink: bestMatch.permalink,
+
+    similarityScore: bestMatch.score,
+
+    subredditName,
+    createdAt: Date.now(),
+
+    status: "pending",
+  });
+
+  console.log('📦 Saved duplicate case to Redis');
+
+  // Keep your existing auto-comment behavior
+  if (ENABLE_AUTOCOMMENTS) {
+    try {
+      await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
+      console.log('💬 ThreadScout comment posted.');
+    } catch (error) {
+      console.error('❌ Failed to post comment:', error);
     }
+  }
+}
 
 const updatedPosts = [
     {

@@ -35,7 +35,23 @@
         "location": ["post"],
         "endpoint": "/internal/menu/test-comment",
         "postFilter": "none"
+      },
+      {
+        "label": "ThreadScout Dashboard",
+        "description": "Open the ThreadScout duplicate review dashboard.",
+        "forUserType": "moderator",
+        "location": ["subreddit"],
+        "endpoint": "/internal/menu/open-dashboard"
       }
     ]
+  },
+  "post": {
+  "dir": "dist/client",
+  "entrypoints": {
+    "default": {
+      "entry": "dashboard.html",
+      "height": "tall"
+    }
   }
+}
 }

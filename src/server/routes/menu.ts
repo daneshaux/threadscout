@@ -121,3 +121,34 @@ menu.post('/test-comment-direct', async (c) => {
     }, 500);
   }
 });
+
+menu.post('/open-dashboard', async (c) => {
+  const body = await c.req.json();
+
+  console.log('🧭 ThreadScout dashboard menu body:', body);
+
+  const subredditName =
+    body?.subreddit?.name ??
+    body?.subredditName ??
+    'threadscout_dev';
+
+  try {
+    await reddit.submitCustomPost({
+      subredditName,
+      title: 'ThreadScout Dashboard',
+      entry: 'default',
+    });
+
+    console.log('✅ ThreadScout dashboard custom post created.');
+
+    return c.json({
+      showToast: 'ThreadScout Dashboard created. Open the new post to review duplicates.',
+    });
+  } catch (error) {
+    console.error('❌ Failed to create ThreadScout Dashboard:', error);
+
+    return c.json({
+      showToast: 'Could not create ThreadScout Dashboard. Check logs.',
+    });
+  }
+});
