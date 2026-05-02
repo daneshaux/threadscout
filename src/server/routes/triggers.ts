@@ -3,6 +3,12 @@ import { reddit, redis } from '@devvit/web/server';
 import { calculateSimilarity } from '../core/similarity';
 import { saveDuplicateCase } from '../core/duplicateCases';
 
+import {
+  getThreadScoutSettings,
+  getSimilarityThreshold,
+  getLookbackMs,
+} from '../core/settings';
+
 export const triggers = new Hono();
 
 type IndexedPost = {
@@ -22,9 +28,6 @@ async function getIndexedPostsFromRedis(): Promise<IndexedPost[]> {
 async function savePostsToRedis(posts: IndexedPost[]) {
   await redis.set(REDIS_KEY, JSON.stringify(posts));
 }
-
-const SIMILARITY_THRESHOLD = 20;
-const ENABLE_AUTOCOMMENTS = true;
 
 async function commentOnDuplicate(
   postId: `t3_${string}`,
@@ -82,6 +85,13 @@ triggers.post('/on-post-submit', async (c) => {
     });
   }
 
+  const settings = await getThreadScoutSettings();
+  const similarityThreshold = getSimilarityThreshold(settings.sensitivity);
+  const lookbackMs = getLookbackMs(settings.lookbackWindow);
+
+  console.log('⚙️ ThreadScout settings:', settings);
+  console.log(`🎚️ Similarity threshold: ${similarityThreshold}`);
+
   const newPostText = `${newPost.title ?? ''} ${newPost.selftext ?? ''}`.trim();
 
   console.log('👀 ThreadScout checking new post:');
@@ -92,7 +102,18 @@ triggers.post('/on-post-submit', async (c) => {
 
   console.log(`📚 Indexed posts count: ${indexedPosts.length}`);
 
-  const candidates = indexedPosts.filter((post) => post.id !== newPost.id);
+  const now = Date.now();
+
+  const candidates = indexedPosts.filter((post) => {
+    if (post.id === newPost.id) return false;
+
+    if (!post.createdAt) return true;
+
+    const createdAtMs =
+      post.createdAt < 10_000_000_000 ? post.createdAt * 1000 : post.createdAt;
+
+    return now - createdAtMs <= lookbackMs;
+  });
 
   const matches = candidates.map((post) => {
     const similarity = calculateSimilarity(newPostText, post.text);
@@ -112,7 +133,7 @@ const bestMatch =
     : undefined;
 
 const isLikelyDuplicate =
-  !!bestMatch && bestMatch.score >= SIMILARITY_THRESHOLD;
+  !!bestMatch && bestMatch.score >= similarityThreshold;
 
   console.log('🧠 ThreadScout best match:');
   console.log(bestMatch ?? 'No indexed posts to compare yet.');
@@ -143,13 +164,17 @@ const isLikelyDuplicate =
   console.log('📦 Saved duplicate case to Redis');
 
   // Keep your existing auto-comment behavior
-  if (ENABLE_AUTOCOMMENTS) {
+  if (settings.actionMode === 'comment_only') {
     try {
       await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
-      console.log('💬 ThreadScout comment posted.');
+      console.log('💬 ThreadScout auto-comment posted.');
     } catch (error) {
-      console.error('❌ Failed to post comment:', error);
+      console.error('❌ Failed to post auto-comment:', error);
     }
+  }
+
+  if (settings.actionMode === 'flag_only') {
+    console.log('🏷️ Flag-only mode: case saved for mod review. No automatic action taken.');
   }
 }
 

@@ -5,6 +5,12 @@ import {
   updateDuplicateCaseStatus,
 } from '../core/duplicateCases';
 
+import {
+  getThreadScoutSettings,
+  saveThreadScoutSettings,
+  type ThreadScoutSettings,
+} from '../core/settings';
+
 export const api = new Hono();
 
 api.get('/cases', async (c) => {
@@ -92,14 +98,40 @@ api.post('/cases/:id/comment-redirect', async (c) => {
 
   await reddit.submitComment({
     id: caseData.duplicatePostId as `t3_${string}`,
-    text: `👋 ThreadScout found a similar discussion.
+    text: `✅ Moderator reviewed: this post appears to duplicate an existing discussion.
 
-This post may already exist here: ${link}
+Please continue the conversation here: ${link}
 
-Please continue the conversation there so answers stay in one place 💬`,
+Thanks for helping keep the community organized 💬`,
   });
 
   const updated = await updateDuplicateCaseStatus(id, 'redirected');
 
   return c.json({ ok: true, case: updated });
+});
+
+api.get('/settings', async (c) => {
+  const settings = await getThreadScoutSettings();
+
+  return c.json({
+    status: 'success',
+    settings,
+  });
+});
+
+api.post('/settings', async (c) => {
+  const body = await c.req.json<ThreadScoutSettings>();
+
+  const settings: ThreadScoutSettings = {
+    sensitivity: body.sensitivity,
+    actionMode: body.actionMode,
+    lookbackWindow: body.lookbackWindow,
+  };
+
+  const saved = await saveThreadScoutSettings(settings);
+
+  return c.json({
+    status: 'success',
+    settings: saved,
+  });
 });

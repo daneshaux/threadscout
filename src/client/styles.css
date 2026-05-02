@@ -16,6 +16,13 @@ body {
   padding: 28px;
 }
 
+.helperText {
+  font-size: 12px;
+  color: #667085;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -155,6 +162,53 @@ button.secondary {
   color: #344054;
 }
 
+.settingsPanel {
+  margin-bottom: 24px;
+  padding: 22px;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.settingsPanel h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.settingsGrid label {
+  display: grid;
+  gap: 8px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.settingsGrid select {
+  width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 14px;
+  padding: 12px;
+  background: #f9fafb;
+  color: #111827;
+  font: inherit;
+  font-weight: 700;
+}
+
+.settingsStatus {
+  margin: 14px 0 0;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .dashboard {
     padding: 18px;
@@ -162,6 +216,10 @@ button.secondary {
 
   .hero {
     flex-direction: column;
+  }
+
+  .settingsGrid {
+    grid-template-columns: 1fr;
   }
 
   .stats {

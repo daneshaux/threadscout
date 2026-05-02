@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
@@ -16,10 +16,24 @@ type DuplicateCase = {
   status: 'pending' | 'redirected' | 'removed' | 'ignored';
 };
 
+type ThreadScoutSettings = {
+  sensitivity: 'low' | 'medium' | 'high';
+  actionMode: 'flag_only' | 'comment_only';
+  lookbackWindow: '24h' | '7d' | '30d';
+};
+
 function App() {
   const [cases, setCases] = useState<DuplicateCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingCaseId, setWorkingCaseId] = useState<string | null>(null);
+
+  const [settings, setSettings] = useState<ThreadScoutSettings>({
+    sensitivity: 'medium',
+    actionMode: 'flag_only',
+    lookbackWindow: '7d',
+  });
+
+  const [savingSettings, setSavingSettings] = useState(false);
 
   async function loadCases() {
     try {
@@ -31,6 +45,48 @@ function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadSettings() {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+
+      if (data.settings) {
+        setSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  }
+
+  async function saveSettings(nextSettings: ThreadScoutSettings) {
+    setSavingSettings(true);
+
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(nextSettings),
+      });
+
+      const data = await res.json();
+
+      if (data.settings) {
+        setSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
+  function updateSettings(nextSettings: ThreadScoutSettings) {
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
   }
 
   async function handleAction(
@@ -59,6 +115,7 @@ function App() {
 
   useEffect(() => {
     loadCases();
+    loadSettings();
   }, []);
 
   const pendingCases = cases.filter((item) => item.status === 'pending');
@@ -87,11 +144,87 @@ function App() {
             <strong>{pendingCases.length}</strong>
             <span>Pending cases</span>
           </div>
+
           <div className="statCard">
             <strong>{averageSimilarity}%</strong>
             <span>Avg. match</span>
           </div>
         </div>
+      </section>
+
+      <section className="settingsPanel">
+        <div>
+          <p className="eyebrow">Settings</p>
+          <h2>Moderation Controls</h2>
+          <p className="subtext">
+            Adjust how sensitive ThreadScout is and what it does when it finds a likely duplicate.
+          </p>
+        </div>
+
+        <div className="settingsGrid">
+          <label className="settingsField">
+            Sensitivity
+            <select
+              value={settings.sensitivity}
+              onChange={(e) => {
+                updateSettings({
+                  ...settings,
+                  sensitivity: e.target.value as ThreadScoutSettings['sensitivity'],
+                });
+              }}
+            >
+              <option value="low">Low — fewer flags</option>
+              <option value="medium">Medium — balanced</option>
+              <option value="high">High — more sensitive</option>
+            </select>
+            <small className="helperText">
+              Higher sensitivity detects more duplicates but may increase false positives.
+            </small>
+          </label>
+
+          <label className="settingsField">
+            Auto-Response
+            <select
+              value={settings.actionMode}
+              onChange={(e) => {
+                updateSettings({
+                  ...settings,
+                  actionMode: e.target.value as ThreadScoutSettings['actionMode'],
+                });
+              }}
+            >
+              <option value="flag_only">Flag for review only</option>
+              <option value="comment_only">Auto-comment on likely duplicates</option>
+            </select>
+            <small className="helperText">
+              Controls whether ThreadScout comments automatically or waits for moderator review.
+            </small>
+          </label>
+
+          <label className="settingsField">
+            Lookback Window
+            <select
+              value={settings.lookbackWindow}
+              onChange={(e) => {
+                updateSettings({
+                  ...settings,
+                  lookbackWindow: e.target.value as ThreadScoutSettings['lookbackWindow'],
+                });
+              }}
+            >
+              <option value="24h">Past 24 hours</option>
+              <option value="7d">Past 7 days</option>
+              <option value="30d">Past 30 days</option>
+            </select>
+            <small className="helperText">
+              Limits duplicate checks to recently indexed posts.
+            </small>
+          </label>
+        </div>
+
+        <p className="settingsStatus">
+          {savingSettings ? 'Saving settings…' : 'All changes saved ✓'}
+        </p>
       </section>
 
       <section className="caseList">
