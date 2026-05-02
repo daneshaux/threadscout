@@ -11,6 +11,7 @@ type DuplicateCase = {
   originalTitle: string;
   originalPermalink?: string;
   similarityScore: number;
+  aiExplanation?: string;
   subredditName: string;
   createdAt: number;
   status: 'pending' | 'redirected' | 'removed' | 'ignored';
@@ -249,6 +250,12 @@ function App() {
                     </p>
                   </div>
                 </div>
+
+                {item.aiExplanation && (
+                  <p className="aiExplanation">
+                    🤖 {item.aiExplanation}
+                  </p>
+                )}
 
                 <div className="linkRow">
                   {item.duplicatePermalink && (

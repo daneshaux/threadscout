@@ -53,5 +53,15 @@
       "height": "tall"
     }
   }
+},
+
+"settings": {
+  "global": {
+    "openaiApiKey": {
+      "type": "string",
+      "label": "OpenAI API Key",
+      "isSecret": true
+    }
+  }
 }
 }

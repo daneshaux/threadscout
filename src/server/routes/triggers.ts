@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { reddit, redis } from '@devvit/web/server';
 import { calculateSimilarity } from '../core/similarity';
 import { saveDuplicateCase } from '../core/duplicateCases';
+import { generateDuplicateExplanation } from '../core/ai';
 
 import {
   getThreadScoutSettings,
@@ -141,6 +142,19 @@ const isLikelyDuplicate =
   if (isLikelyDuplicate && bestMatch) {
   console.log('🚨 Possible duplicate detected!');
 
+  let aiExplanation = '';
+
+  try {
+    aiExplanation = await generateDuplicateExplanation(
+      newPostText,
+      `${bestMatch.title}`
+    );
+
+    console.log('🤖 AI duplicate explanation generated:', aiExplanation);
+  } catch (error) {
+    console.error('❌ Failed to generate AI explanation:', error);
+  }
+
   // ✅ Create duplicate case
   await saveDuplicateCase({
     id: `${newPost.id}:${bestMatch.id}`,
@@ -154,6 +168,7 @@ const isLikelyDuplicate =
     originalPermalink: bestMatch.permalink,
 
     similarityScore: bestMatch.score,
+    aiExplanation,
 
     subredditName,
     createdAt: Date.now(),

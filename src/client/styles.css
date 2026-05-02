@@ -11,6 +11,16 @@ body {
   color: #111827;
 }
 
+.aiExplanation {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #475467;
+  background: #f2f4f7;
+  padding: 10px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+
 .dashboard {
   min-height: 100vh;
   padding: 28px;

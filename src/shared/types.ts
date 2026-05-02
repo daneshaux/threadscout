@@ -16,6 +16,7 @@ export type DuplicateCase = {
   originalPermalink?: string;
 
   similarityScore: number;
+  aiExplanation?: string;
 
   subredditName: string;
   createdAt: number;
