@@ -36,6 +36,19 @@ async function savePostsToRedis(posts: IndexedPost[]) {
   await redis.set(REDIS_KEY, JSON.stringify(posts));
 }
 
+function prunePostsByLookback(posts: IndexedPost[], lookbackMs: number) {
+  const now = Date.now();
+
+  return posts.filter((post) => {
+    if (!post.createdAt) return true;
+
+    const createdAtMs =
+      post.createdAt < 10_000_000_000 ? post.createdAt * 1000 : post.createdAt;
+
+    return now - createdAtMs <= lookbackMs;
+  });
+}
+
 async function commentOnDuplicate(
   postId: `t3_${string}`,
   bestMatch: {
@@ -168,16 +181,6 @@ triggers.post('/on-post-submit', async (c) => {
 
       const finalScore = Math.max(keywordSimilarity.score, semanticPercent);
 
-      console.log('📊 Candidate checked:', {
-        id: post.id,
-        title: post.title,
-        keywordScore: keywordSimilarity.score,
-        semanticScore: semanticPercent,
-        finalScore,
-        embedding: post.embedding ? 'cached/reused' : 'missing',
-        embeddingStatus,
-      });
-
       return {
         id: post.id,
         title: post.title,
@@ -191,16 +194,15 @@ triggers.post('/on-post-submit', async (c) => {
     })
   );
 
-  const bestMatch =
-    matches.length > 0
-      ? matches.sort((a, b) => b.score - a.score)[0]
-      : undefined;
+  const sortedMatches = [...matches].sort((a, b) => b.score - a.score);
+
+  const bestMatch = sortedMatches.length > 0 ? sortedMatches[0] : undefined;
 
   const isLikelyDuplicate =
     !!bestMatch && bestMatch.score >= similarityThreshold;
 
-  console.log('🧠 ThreadScout best match:');
-  console.log(bestMatch ?? 'No indexed posts to compare yet.');
+  console.log('🏆 Top candidate matches:', sortedMatches.slice(0, 3));
+  console.log('🧠 ThreadScout best match:', bestMatch ?? 'No indexed posts to compare yet.');
 
   if (isLikelyDuplicate && bestMatch) {
     console.log('🚨 Possible duplicate detected!');
@@ -256,7 +258,13 @@ triggers.post('/on-post-submit', async (c) => {
     }
   }
 
-  const updatedPosts = [
+  // Scale guardrail:
+  // 1. Add the newest post with its cached embedding.
+  // 2. Remove posts outside the selected lookback window.
+  // 3. Remove duplicate IDs.
+  // 4. Cap Redis index size so large subreddits do not cause unbounded comparisons.
+
+  const postsWithNewPost = [
     {
       id: newPost.id,
       title: newPost.title ?? '',
@@ -266,7 +274,15 @@ triggers.post('/on-post-submit', async (c) => {
       embedding: newPostEmbedding.length > 0 ? newPostEmbedding : undefined,
     },
     ...indexedPosts,
-  ].slice(0, 100);
+  ];
+
+  const prunedPosts = prunePostsByLookback(postsWithNewPost, lookbackMs);
+
+  const uniquePosts = Array.from(
+    new Map(prunedPosts.map((post) => [post.id, post])).values()
+  );
+
+  const updatedPosts = uniquePosts.slice(0, 100);
 
   await savePostsToRedis(updatedPosts);
 
@@ -274,6 +290,8 @@ triggers.post('/on-post-submit', async (c) => {
     console.log('🧠 Updated Redis index with newly cached candidate embeddings.');
   }
 
+  console.log('🧹 Pruned Redis index by lookback window');
+  console.log(`📦 Redis index size after guardrails: ${updatedPosts.length}`);
   console.log('✅ Saved new post to Redis index');
   console.log('🧠 ThreadScout updated Redis index');
 

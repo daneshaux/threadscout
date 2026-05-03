@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { reddit } from '@devvit/web/server';
+import { reddit, redis } from '@devvit/web/server';
 
 export const menu = new Hono();
 
@@ -132,23 +132,43 @@ menu.post('/open-dashboard', async (c) => {
     body?.subredditName ??
     'threadscout_dev';
 
+  const dashboardKey = `threadscout:${subredditName}:dashboardPostId`;
+
   try {
-    await reddit.submitCustomPost({
+    const existingPostId = await redis.get(dashboardKey);
+
+    if (existingPostId) {
+      const cleanPostId = existingPostId.replace('t3_', '');
+
+      console.log('♻️ Reusing existing dashboard:', existingPostId);
+
+      return c.json({
+        showToast: 'Opening ThreadScout Dashboard...',
+        navigateTo: `https://www.reddit.com/r/${subredditName}/comments/${cleanPostId}`,
+      });
+    }
+
+    const newPost = await reddit.submitCustomPost({
       subredditName,
       title: 'ThreadScout Dashboard',
       entry: 'default',
     });
 
-    console.log('✅ ThreadScout dashboard custom post created.');
+    await redis.set(dashboardKey, newPost.id);
+
+    const cleanPostId = newPost.id.replace('t3_', '');
+
+    console.log('🆕 Created new dashboard:', newPost.id);
 
     return c.json({
-      showToast: 'ThreadScout Dashboard created. Open the new post to review duplicates.',
+      showToast: 'ThreadScout Dashboard created. Opening now...',
+      navigateTo: `https://www.reddit.com/r/${subredditName}/comments/${cleanPostId}`,
     });
   } catch (error) {
-    console.error('❌ Failed to create ThreadScout Dashboard:', error);
+    console.error('❌ Failed to open/create ThreadScout Dashboard:', error);
 
     return c.json({
-      showToast: 'Could not create ThreadScout Dashboard. Check logs.',
+      showToast: 'Could not open ThreadScout Dashboard. Check logs.',
     });
   }
 });
