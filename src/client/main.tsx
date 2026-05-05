@@ -8,6 +8,7 @@ import successIconUrl from '../assets/success.svg';
 import uncheckedIconUrl from '../assets/unchecked.svg';
 import warningIconUrl from '../assets/warning.svg';
 import logoUrl from '../assets/logo.png';
+import logoLightUrl from '../assets/logoLight.png';
 import openIconUrl from '../assets/openIcon.svg';
 import './styles.css';
 
@@ -43,7 +44,8 @@ type RemoveConfirmationState =
 function Header() {
   return (
     <header className="appHeader">
-      <img className="appLogo" src={logoUrl} alt="ThreadScout" />
+      <img className="appLogo appLogoLightMode" src={logoUrl} alt="ThreadScout" />
+      <img className="appLogo appLogoDarkMode" src={logoLightUrl} alt="ThreadScout" />
       <h1>Duplicate Review Dashboard</h1>
       <p className="subtext">
         Review posts flagged as possible duplicates and choose the right mod action.
@@ -131,7 +133,9 @@ function SettingsCard({
     'Past 7 days';
 
   return (
-    <section className="settingsCard">
+    <section
+      className={expanded ? 'settingsCard settingsCardExpanded' : 'settingsCard'}
+    >
       <SettingsToggle expanded={expanded} onToggle={onToggleExpanded} />
 
       {expanded && (

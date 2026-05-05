@@ -62,6 +62,10 @@ body {
   margin: 0 0 16px;
 }
 
+.appLogoDarkMode {
+  display: none;
+}
+
 .appHeader h1 {
   margin: 0 0 8px;
   color: #000000;
@@ -617,6 +621,459 @@ h1 {
   line-height: 1.35;
 }
 
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0a0316;
+  }
+
+  .appLogoLightMode {
+    display: none;
+  }
+
+  .appLogoDarkMode {
+    display: block;
+  }
+
+  .appHeader h1 {
+    color: #ffffff;
+  }
+
+  .appHeader .subtext {
+    color: #ece2ff;
+  }
+
+  .statCard {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  .statCard strong {
+    color: #ffffff;
+  }
+
+  .statCard span {
+    color: #ece2ff;
+  }
+
+  .settingsCard:not(.settingsCardExpanded) {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  .settingsCard:not(.settingsCardExpanded) .settingsToggle {
+    color: #ffffff;
+  }
+
+  .settingsCard:not(.settingsCardExpanded) .settingsChevron {
+    border-color: #ffffff;
+  }
+
+  .settingsCardExpanded {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  .settingsCardExpanded .settingsToggle,
+  .settingsCardExpanded .settingsLabel,
+  .settingsCardExpanded .settingsHelper {
+    color: #ffffff;
+  }
+
+  .settingsCardExpanded .settingsChevron {
+    border-color: #ffffff;
+  }
+
+  .settingsCardExpanded .settingsDescription,
+  .settingsCardExpanded .sensitivityLabels {
+    color: #ece2ff;
+  }
+
+  .emptyState {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  .emptyState h2 {
+    color: #ffffff;
+  }
+
+  .emptyState p {
+    color: #ece2ff;
+  }
+
+  .successBanner {
+    border-color: #034005;
+    background: #151121;
+    color: #64b366;
+  }
+
+  .successBanner img {
+    filter: brightness(0) saturate(100%) invert(68%) sepia(16%) saturate(1104%)
+      hue-rotate(73deg) brightness(92%) contrast(89%);
+  }
+
+  .removeWarningIcon {
+    filter: brightness(0) saturate(100%) invert(93%) sepia(12%) saturate(673%)
+      hue-rotate(209deg) brightness(105%) contrast(101%);
+  }
+
+  .removeConfirmation h2,
+  .removeConfirmation p {
+    color: #ffffff;
+  }
+
+  .removeConfirmation .ignoreAction {
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    color: #330c78;
+  }
+
+  .removeConfirmation .removeAction {
+    border: 1px solid #783637;
+    background: #591d1e;
+    color: #ffffff;
+  }
+
+  .caseList .caseCard,
+  .mobileDetailsView .detailsCard {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  .caseList .openPostLink img {
+    filter: brightness(0) invert(1);
+  }
+
+  .mobileDetailsView .detailsBackButton {
+    color: #ffffff;
+  }
+
+  .mobileDetailsView .detailsBackButton img {
+    filter: brightness(0) invert(1);
+  }
+
+  .caseList .duplicateTitle,
+  .mobileDetailsView .detailsDuplicateTitle {
+    color: #ffffff;
+  }
+
+  .caseList .meta,
+  .caseList .metaLabel,
+  .caseList .metaTitle,
+  .mobileDetailsView .detailsMeta,
+  .mobileDetailsView .metaLabel,
+  .mobileDetailsView .metaTitle {
+    color: #ece2ff;
+  }
+
+  .caseList .aiExplanation,
+  .mobileDetailsView .detailsAiExplanation {
+    background: #271d38;
+    color: #ffffff;
+  }
+
+  .caseList .aiExplanationText,
+  .mobileDetailsView .detailsAiExplanation p {
+    color: #ffffff;
+  }
+
+  .caseList .linkRow a,
+  .mobileDetailsView .detailsLinkRow a {
+    color: #80b2c9;
+  }
+
+  .caseList .actionRow .removeAction,
+  .mobileDetailsView .detailsActionRow .removeAction {
+    border: 1px solid #783637;
+    background: #591d1e;
+    color: #ffffff;
+  }
+
+  .caseList .actionRow .ignoreAction,
+  .mobileDetailsView .detailsActionRow .ignoreAction {
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    color: #330c78;
+  }
+
+  .caseList .actionRow .commentAction,
+  .mobileDetailsView .detailsActionRow .commentAction {
+    border: 0;
+    background: #330c78;
+    color: #ffffff;
+  }
+
+  .caseList .matchBadge {
+    color: #ffffff;
+  }
+
+  .caseList .matchBadgeHigh {
+    background: #514268;
+  }
+
+  .caseList .matchBadgeMedium {
+    background: #332846;
+  }
+
+  .caseList .matchBadgeLow {
+    background: #2e263d;
+  }
+}
+
+:is(.dark, [data-theme='dark']) body,
+body:is(.dark, [data-theme='dark']) {
+  background: #0a0316;
+}
+
+:is(.dark, [data-theme='dark']) .appLogoLightMode,
+body:is(.dark, [data-theme='dark']) .appLogoLightMode {
+  display: none;
+}
+
+:is(.dark, [data-theme='dark']) .appLogoDarkMode,
+body:is(.dark, [data-theme='dark']) .appLogoDarkMode {
+  display: block;
+}
+
+:is(.dark, [data-theme='dark']) .appHeader h1,
+body:is(.dark, [data-theme='dark']) .appHeader h1 {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .appHeader .subtext,
+body:is(.dark, [data-theme='dark']) .appHeader .subtext {
+  color: #ece2ff;
+}
+
+:is(.dark, [data-theme='dark']) .statCard,
+body:is(.dark, [data-theme='dark']) .statCard {
+  border-color: #2e243e;
+  background: #171121;
+}
+
+:is(.dark, [data-theme='dark']) .statCard strong,
+body:is(.dark, [data-theme='dark']) .statCard strong {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .statCard span,
+body:is(.dark, [data-theme='dark']) .statCard span {
+  color: #ece2ff;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCard:not(.settingsCardExpanded),
+body:is(.dark, [data-theme='dark']) .settingsCard:not(.settingsCardExpanded) {
+  border-color: #2e243e;
+  background: #171121;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCard:not(.settingsCardExpanded) .settingsToggle,
+body:is(.dark, [data-theme='dark']) .settingsCard:not(.settingsCardExpanded) .settingsToggle {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCard:not(.settingsCardExpanded) .settingsChevron,
+body:is(.dark, [data-theme='dark']) .settingsCard:not(.settingsCardExpanded) .settingsChevron {
+  border-color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCardExpanded,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded {
+  border-color: #2e243e;
+  background: #171121;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsToggle,
+:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsLabel,
+:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsHelper,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsToggle,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsLabel,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsHelper {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsChevron,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsChevron {
+  border-color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsDescription,
+:is(.dark, [data-theme='dark']) .settingsCardExpanded .sensitivityLabels,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded .settingsDescription,
+body:is(.dark, [data-theme='dark']) .settingsCardExpanded .sensitivityLabels {
+  color: #ece2ff;
+}
+
+:is(.dark, [data-theme='dark']) .emptyState,
+body:is(.dark, [data-theme='dark']) .emptyState {
+  border-color: #2e243e;
+  background: #171121;
+}
+
+:is(.dark, [data-theme='dark']) .emptyState h2,
+body:is(.dark, [data-theme='dark']) .emptyState h2 {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .emptyState p,
+body:is(.dark, [data-theme='dark']) .emptyState p {
+  color: #ece2ff;
+}
+
+:is(.dark, [data-theme='dark']) .successBanner,
+body:is(.dark, [data-theme='dark']) .successBanner {
+  border-color: #034005;
+  background: #151121;
+  color: #64b366;
+}
+
+:is(.dark, [data-theme='dark']) .successBanner img,
+body:is(.dark, [data-theme='dark']) .successBanner img {
+  filter: brightness(0) saturate(100%) invert(68%) sepia(16%) saturate(1104%)
+    hue-rotate(73deg) brightness(92%) contrast(89%);
+}
+
+:is(.dark, [data-theme='dark']) .removeWarningIcon,
+body:is(.dark, [data-theme='dark']) .removeWarningIcon {
+  filter: brightness(0) saturate(100%) invert(93%) sepia(12%) saturate(673%)
+    hue-rotate(209deg) brightness(105%) contrast(101%);
+}
+
+:is(.dark, [data-theme='dark']) .removeConfirmation h2,
+:is(.dark, [data-theme='dark']) .removeConfirmation p,
+body:is(.dark, [data-theme='dark']) .removeConfirmation h2,
+body:is(.dark, [data-theme='dark']) .removeConfirmation p {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .removeConfirmation .ignoreAction,
+body:is(.dark, [data-theme='dark']) .removeConfirmation .ignoreAction {
+  border: 1px solid #e0e0e0;
+  background: #ffffff;
+  color: #330c78;
+}
+
+:is(.dark, [data-theme='dark']) .removeConfirmation .removeAction,
+body:is(.dark, [data-theme='dark']) .removeConfirmation .removeAction {
+  border: 1px solid #783637;
+  background: #591d1e;
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .caseCard,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsCard,
+body:is(.dark, [data-theme='dark']) .caseList .caseCard,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsCard {
+  border-color: #2e243e;
+  background: #171121;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .openPostLink img,
+body:is(.dark, [data-theme='dark']) .caseList .openPostLink img {
+  filter: brightness(0) invert(1);
+}
+
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsBackButton,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsBackButton {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsBackButton img,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsBackButton img {
+  filter: brightness(0) invert(1);
+}
+
+:is(.dark, [data-theme='dark']) .caseList .duplicateTitle,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsDuplicateTitle,
+body:is(.dark, [data-theme='dark']) .caseList .duplicateTitle,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsDuplicateTitle {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .meta,
+:is(.dark, [data-theme='dark']) .caseList .metaLabel,
+:is(.dark, [data-theme='dark']) .caseList .metaTitle,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsMeta,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .metaLabel,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .metaTitle,
+body:is(.dark, [data-theme='dark']) .caseList .meta,
+body:is(.dark, [data-theme='dark']) .caseList .metaLabel,
+body:is(.dark, [data-theme='dark']) .caseList .metaTitle,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsMeta,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .metaLabel,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .metaTitle {
+  color: #ece2ff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .aiExplanation,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsAiExplanation,
+body:is(.dark, [data-theme='dark']) .caseList .aiExplanation,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsAiExplanation {
+  background: #271d38;
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .aiExplanationText,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsAiExplanation p,
+body:is(.dark, [data-theme='dark']) .caseList .aiExplanationText,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsAiExplanation p {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .linkRow a,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsLinkRow a,
+body:is(.dark, [data-theme='dark']) .caseList .linkRow a,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsLinkRow a {
+  color: #80b2c9;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .actionRow .removeAction,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsActionRow .removeAction,
+body:is(.dark, [data-theme='dark']) .caseList .actionRow .removeAction,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsActionRow .removeAction {
+  border: 1px solid #783637;
+  background: #591d1e;
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .actionRow .ignoreAction,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsActionRow .ignoreAction,
+body:is(.dark, [data-theme='dark']) .caseList .actionRow .ignoreAction,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsActionRow .ignoreAction {
+  border: 1px solid #e0e0e0;
+  background: #ffffff;
+  color: #330c78;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .actionRow .commentAction,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsActionRow .commentAction,
+body:is(.dark, [data-theme='dark']) .caseList .actionRow .commentAction,
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsActionRow .commentAction {
+  border: 0;
+  background: #330c78;
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .matchBadge,
+body:is(.dark, [data-theme='dark']) .caseList .matchBadge {
+  color: #ffffff;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .matchBadgeHigh,
+body:is(.dark, [data-theme='dark']) .caseList .matchBadgeHigh {
+  background: #514268;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .matchBadgeMedium,
+body:is(.dark, [data-theme='dark']) .caseList .matchBadgeMedium {
+  background: #332846;
+}
+
+:is(.dark, [data-theme='dark']) .caseList .matchBadgeLow,
+body:is(.dark, [data-theme='dark']) .caseList .matchBadgeLow {
+  background: #2e263d;
+}
+
 .matchBadge {
   display: inline-flex;
   margin: 0 0 10px;
@@ -1106,6 +1563,218 @@ button.secondary {
     border: 1px solid #dc7f80;
     background: #ffebeb;
     color: #000000;
+  }
+}
+
+@media (prefers-color-scheme: dark) and (min-width: 901px) {
+  .desktopRemoveModal {
+    border-color: #2e243e;
+    background: #151121;
+  }
+
+  .desktopCaseGrid:not(.desktopCaseGridEmpty) {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  .desktopSearchControl {
+    border-color: #ffffff;
+    background: #171121;
+    color: #ffffff;
+  }
+
+  .desktopSearchControl span {
+    color: #ece2ff;
+  }
+
+  .desktopSearchControl img,
+  .desktopSortButton img,
+  .desktopCheckboxIcon,
+  .desktopPagination img {
+    filter: brightness(0) invert(1);
+  }
+
+  .desktopSortButton {
+    border-color: #ffffff;
+    background: #171121;
+    color: #ffffff;
+  }
+
+  .desktopCasesTable th {
+    border-bottom-color: #2e243e;
+    color: #ffffff;
+  }
+
+  .desktopCasesTable tbody tr {
+    border-bottom-color: #2e243e;
+    background: #171121;
+  }
+
+  .desktopCasesTable tbody tr:nth-child(even) {
+    background: #271d38;
+  }
+
+  .desktopCasesTable a,
+  .desktopCasesTable .desktopDuplicateCell span,
+  .desktopCasesTable td:nth-child(2) span {
+    color: #ece2ff;
+  }
+
+  .desktopCasesTable .matchBadge {
+    color: #ffffff;
+  }
+
+  .desktopCasesTable .matchBadgeHigh {
+    background: #514268;
+  }
+
+  .desktopCasesTable .matchBadgeMedium {
+    background: #332846;
+  }
+
+  .desktopCasesTable .matchBadgeLow {
+    background: #2e263d;
+  }
+
+  .desktopExplanationText,
+  .desktopPagination {
+    color: #ffffff;
+  }
+
+  .desktopBulkActions .removeAction {
+    border: 1px solid #783637;
+    background: #591d1e;
+    color: #ffffff;
+  }
+
+  .desktopBulkActions .ignoreAction {
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    color: #330c78;
+  }
+
+  .desktopBulkActions .commentAction {
+    border: 0;
+    background: #330c78;
+    color: #ffffff;
+  }
+}
+
+@media (min-width: 901px) {
+  :is(.dark, [data-theme='dark']) .desktopRemoveModal,
+  body:is(.dark, [data-theme='dark']) .desktopRemoveModal {
+    border-color: #2e243e;
+    background: #151121;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCaseGrid:not(.desktopCaseGridEmpty),
+  body:is(.dark, [data-theme='dark']) .desktopCaseGrid:not(.desktopCaseGridEmpty) {
+    border-color: #2e243e;
+    background: #171121;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopSearchControl,
+  body:is(.dark, [data-theme='dark']) .desktopSearchControl {
+    border-color: #ffffff;
+    background: #171121;
+    color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopSearchControl span,
+  body:is(.dark, [data-theme='dark']) .desktopSearchControl span {
+    color: #ece2ff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopSearchControl img,
+  :is(.dark, [data-theme='dark']) .desktopSortButton img,
+  :is(.dark, [data-theme='dark']) .desktopCheckboxIcon,
+  :is(.dark, [data-theme='dark']) .desktopPagination img,
+  body:is(.dark, [data-theme='dark']) .desktopSearchControl img,
+  body:is(.dark, [data-theme='dark']) .desktopSortButton img,
+  body:is(.dark, [data-theme='dark']) .desktopCheckboxIcon,
+  body:is(.dark, [data-theme='dark']) .desktopPagination img {
+    filter: brightness(0) invert(1);
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopSortButton,
+  body:is(.dark, [data-theme='dark']) .desktopSortButton {
+    border-color: #ffffff;
+    background: #171121;
+    color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable th,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable th {
+    border-bottom-color: #2e243e;
+    color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable tbody tr,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable tbody tr {
+    border-bottom-color: #2e243e;
+    background: #171121;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable tbody tr:nth-child(even),
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable tbody tr:nth-child(even) {
+    background: #271d38;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable a,
+  :is(.dark, [data-theme='dark']) .desktopCasesTable .desktopDuplicateCell span,
+  :is(.dark, [data-theme='dark']) .desktopCasesTable td:nth-child(2) span,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable a,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable .desktopDuplicateCell span,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable td:nth-child(2) span {
+    color: #ece2ff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadge,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadge {
+    color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadgeHigh,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadgeHigh {
+    background: #514268;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadgeMedium,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadgeMedium {
+    background: #332846;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadgeLow,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable .matchBadgeLow {
+    background: #2e263d;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopExplanationText,
+  :is(.dark, [data-theme='dark']) .desktopPagination,
+  body:is(.dark, [data-theme='dark']) .desktopExplanationText,
+  body:is(.dark, [data-theme='dark']) .desktopPagination {
+    color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopBulkActions .removeAction,
+  body:is(.dark, [data-theme='dark']) .desktopBulkActions .removeAction {
+    border: 1px solid #783637;
+    background: #591d1e;
+    color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopBulkActions .ignoreAction,
+  body:is(.dark, [data-theme='dark']) .desktopBulkActions .ignoreAction {
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    color: #330c78;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopBulkActions .commentAction,
+  body:is(.dark, [data-theme='dark']) .desktopBulkActions .commentAction {
+    border: 0;
+    background: #330c78;
+    color: #ffffff;
   }
 }
 
