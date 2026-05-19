@@ -1,9 +1,50 @@
 import { settings } from '@devvit/web/server';
 
-export async function generateDuplicateExplanation(
+export type DuplicateVerificationResult = {
+  isDuplicate: boolean;
+  confidence: 'low' | 'medium' | 'high';
+  explanation: string;
+};
+
+function getObjectValue(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+
+  return Object.getOwnPropertyDescriptor(value, key)?.value;
+}
+
+function isConfidence(value: unknown): value is DuplicateVerificationResult['confidence'] {
+  return value === 'low' || value === 'medium' || value === 'high';
+}
+
+function parseDuplicateVerificationResult(
+  value: unknown
+): DuplicateVerificationResult | null {
+  const isDuplicate = getObjectValue(value, 'isDuplicate');
+  const confidence = getObjectValue(value, 'confidence');
+  const explanation = getObjectValue(value, 'explanation');
+
+  if (
+    typeof isDuplicate !== 'boolean' ||
+    !isConfidence(confidence) ||
+    typeof explanation !== 'string' ||
+    explanation.trim().length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    isDuplicate,
+    confidence,
+    explanation: explanation.trim(),
+  };
+}
+
+export async function verifyDuplicateWithAi(
   postA: string,
   postB: string
-) {
+): Promise<DuplicateVerificationResult | null> {
   const OPENAI_API_KEY = await settings.get('openaiApiKey');
 
   if (!OPENAI_API_KEY) {
@@ -22,21 +63,49 @@ export async function generateDuplicateExplanation(
       messages: [
         {
           role: 'system',
-          content:
-            'You are a moderation assistant. Explain briefly why two posts might be duplicates.',
+          content: [
+            'You are a strict moderation assistant for duplicate Reddit post detection.',
+            'Decide whether two posts ask substantially the same question/request or would fragment the same discussion.',
+            'Return false when posts only share location, format, broad recommendation intent, general category overlap, or similar wording with different actual topics.',
+            'Return only valid JSON with this exact shape: {"isDuplicate": boolean, "confidence": "low" | "medium" | "high", "explanation": string}.',
+          ].join(' '),
         },
         {
           role: 'user',
-          content: `Post A: ${postA}\n\nPost B: ${postB}`,
+          content: `New post:\n${postA}\n\nPotential original post:\n${postB}`,
         },
       ],
-      temperature: 0.3,
+      response_format: { type: 'json_object' },
+      temperature: 0,
     }),
   });
 
-  const data = await response.json();
+  if (!response.ok) {
+    console.error('❌ AI duplicate verification request failed:', await response.text());
+    return null;
+  }
 
-  return data.choices?.[0]?.message?.content ?? null;
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+
+  if (typeof content !== 'string') {
+    return null;
+  }
+
+  try {
+    return parseDuplicateVerificationResult(JSON.parse(content));
+  } catch (error) {
+    console.error('❌ Failed to parse AI duplicate verification JSON:', error);
+    return null;
+  }
+}
+
+export async function generateDuplicateExplanation(
+  postA: string,
+  postB: string
+) {
+  const result = await verifyDuplicateWithAi(postA, postB);
+  return result?.explanation ?? null;
 }
 
 export async function getEmbedding(text: string): Promise<number[]> {

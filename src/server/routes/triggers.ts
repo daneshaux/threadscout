@@ -3,7 +3,7 @@ import { reddit, redis } from '@devvit/web/server';
 import { calculateSimilarity } from '../core/similarity';
 import { saveDuplicateCase } from '../core/duplicateCases';
 import {
-  generateDuplicateExplanation,
+  verifyDuplicateWithAi,
   getEmbedding,
   cosineSimilarity,
 } from '../core/ai';
@@ -27,6 +27,7 @@ type IndexedPost = {
 
 const REDIS_KEY = 'threadscout:posts';
 const MIN_AUTO_COMMENT_SCORE = 60;
+const MIN_AI_FALLBACK_SAVE_SCORE = 80;
 
 async function getIndexedPostsFromRedis(): Promise<IndexedPost[]> {
   const data = await redis.get(REDIS_KEY);
@@ -252,6 +253,7 @@ triggers.post('/on-post-submit', async (c) => {
       return {
         id: post.id,
         title: post.title,
+        text: post.text,
         permalink: post.permalink,
         score: finalScore,
         keywordScore: keywordSimilarity.score,
@@ -275,66 +277,85 @@ triggers.post('/on-post-submit', async (c) => {
   if (isLikelyDuplicate && bestMatch) {
     console.log('🚨 Possible duplicate detected!');
 
-    let aiExplanation = '';
+    const aiResult = await verifyDuplicateWithAi(
+      newPostText,
+      `${bestMatch.title}\n${bestMatch.text}`
+    );
 
-    try {
-      aiExplanation = await generateDuplicateExplanation(
-        newPostText,
-        `${bestMatch.title}`
-      );
-
-      console.log('🤖 AI duplicate explanation generated:', aiExplanation);
-    } catch (error) {
-      console.error('❌ Failed to generate AI explanation:', error);
+    if (aiResult?.isDuplicate === false) {
+      console.log('🛑 AI verification rejected match.');
     }
 
-    await saveDuplicateCase({
-      id: `${newPost.id}:${bestMatch.id}`,
+    const shouldSaveDuplicateCase =
+      aiResult?.isDuplicate === true ||
+      (!aiResult && bestMatch.score >= MIN_AI_FALLBACK_SAVE_SCORE);
 
-      duplicatePostId: newPost.id,
-      duplicateTitle: newPost.title ?? '',
-      duplicatePermalink: newPost.permalink,
+    if (!aiResult && bestMatch.score < MIN_AI_FALLBACK_SAVE_SCORE) {
+      console.log(
+        '🛑 AI verification unavailable or invalid; match score below safe fallback save threshold.'
+      );
+    }
 
-      originalPostId: bestMatch.id,
-      originalTitle: bestMatch.title,
-      originalPermalink: bestMatch.permalink,
+    if (shouldSaveDuplicateCase) {
+      const aiExplanation =
+        aiResult?.explanation ??
+        'High-similarity match saved for moderator review; AI verification was unavailable.';
 
-      similarityScore: bestMatch.score,
-      aiExplanation,
+      console.log('🤖 AI duplicate verification accepted:', aiResult);
 
-      subredditName,
-      createdAt: Date.now(),
+      await saveDuplicateCase({
+        id: `${newPost.id}:${bestMatch.id}`,
 
-      status: 'pending',
-    });
+        duplicatePostId: newPost.id,
+        duplicateTitle: newPost.title ?? '',
+        duplicatePermalink: newPost.permalink,
 
-    console.log('📦 Saved duplicate case to Redis');
+        originalPostId: bestMatch.id,
+        originalTitle: bestMatch.title,
+        originalPermalink: bestMatch.permalink,
 
-    if (
-      settings.actionMode === 'comment_only' &&
-      bestMatch.score >= MIN_AUTO_COMMENT_SCORE
-    ) {
-      try {
-        await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
-        console.log('💬 ThreadScout auto-comment posted.');
-      } catch (error) {
-        console.error('❌ Failed to post auto-comment:', error);
+        similarityScore: bestMatch.score,
+        aiExplanation,
+
+        subredditName,
+        createdAt: Date.now(),
+
+        status: 'pending',
+      });
+
+      console.log('📦 Saved duplicate case to Redis');
+
+      if (
+        settings.actionMode === 'comment_only' &&
+        aiResult?.isDuplicate === true &&
+        bestMatch.score >= MIN_AUTO_COMMENT_SCORE
+      ) {
+        try {
+          await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
+          console.log('💬 ThreadScout auto-comment posted.');
+        } catch (error) {
+          console.error('❌ Failed to post auto-comment:', error);
+        }
       }
-    }
 
-    if (
-      settings.actionMode === 'comment_only' &&
-      bestMatch.score < MIN_AUTO_COMMENT_SCORE
-    ) {
-      console.log(
-        '⚠️ Auto-comment skipped: match score below safe auto-comment threshold.'
-      );
-    }
+      if (
+        settings.actionMode === 'comment_only' &&
+        bestMatch.score < MIN_AUTO_COMMENT_SCORE
+      ) {
+        console.log(
+          '⚠️ Auto-comment skipped: match score below safe auto-comment threshold.'
+        );
+      }
 
-    if (settings.actionMode === 'flag_only') {
-      console.log(
-        '🏷️ Flag-only mode: case saved for mod review. No automatic action taken.'
-      );
+      if (settings.actionMode === 'comment_only' && aiResult?.isDuplicate !== true) {
+        console.log('⚠️ Auto-comment skipped: AI verification unavailable.');
+      }
+
+      if (settings.actionMode === 'flag_only') {
+        console.log(
+          '🏷️ Flag-only mode: case saved for mod review. No automatic action taken.'
+        );
+      }
     }
   }
 
