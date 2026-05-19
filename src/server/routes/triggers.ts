@@ -26,6 +26,7 @@ type IndexedPost = {
 };
 
 const REDIS_KEY = 'threadscout:posts';
+const MIN_AUTO_COMMENT_SCORE = 60;
 
 async function getIndexedPostsFromRedis(): Promise<IndexedPost[]> {
   const data = await redis.get(REDIS_KEY);
@@ -42,11 +43,52 @@ function prunePostsByLookback(posts: IndexedPost[], lookbackMs: number) {
   return posts.filter((post) => {
     if (!post.createdAt) return true;
 
-    const createdAtMs =
-      post.createdAt < 10_000_000_000 ? post.createdAt * 1000 : post.createdAt;
+    const createdAtMs = normalizeTimestampMs(post.createdAt);
+
+    if (!createdAtMs) return true;
 
     return now - createdAtMs <= lookbackMs;
   });
+}
+
+function normalizeTimestampMs(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return undefined;
+    return value < 10_000_000_000 ? value * 1000 : value;
+  }
+
+  if (typeof value === 'string') {
+    const numericValue = Number(value);
+
+    if (Number.isFinite(numericValue)) {
+      return numericValue < 10_000_000_000
+        ? numericValue * 1000
+        : numericValue;
+    }
+
+    const parsedDate = Date.parse(value);
+    return Number.isFinite(parsedDate) ? parsedDate : undefined;
+  }
+
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isFinite(time) ? time : undefined;
+  }
+
+  return undefined;
+}
+
+function getSubmittedPostCreatedAtMs(newPost: {
+  createdAt?: unknown;
+  created_utc?: unknown;
+  createdUtc?: unknown;
+}) {
+  return (
+    normalizeTimestampMs(newPost.createdAt) ??
+    normalizeTimestampMs(newPost.created_utc) ??
+    normalizeTimestampMs(newPost.createdUtc) ??
+    Date.now()
+  );
 }
 
 async function commentOnDuplicate(
@@ -108,9 +150,13 @@ triggers.post('/on-post-submit', async (c) => {
   const settings = await getThreadScoutSettings();
   const similarityThreshold = getSimilarityThreshold(settings.sensitivity);
   const lookbackMs = getLookbackMs(settings.lookbackWindow);
+  const newPostCreatedAtMs = getSubmittedPostCreatedAtMs(newPost);
 
   console.log('⚙️ ThreadScout settings:', settings);
+  console.log(`🪟 Lookback window: ${settings.lookbackWindow}`);
+  console.log(`🪟 Lookback ms: ${lookbackMs}`);
   console.log(`🎚️ Similarity threshold: ${similarityThreshold}`);
+  console.log(`🕒 New post createdAt ms: ${newPostCreatedAtMs}`);
 
   const newPostText = `${newPost.title ?? ''} ${newPost.selftext ?? ''}`.trim();
 
@@ -125,14 +171,36 @@ triggers.post('/on-post-submit', async (c) => {
   const now = Date.now();
 
   const candidates = indexedPosts.filter((post) => {
-    if (post.id === newPost.id) return false;
+    if (post.id === newPost.id) {
+      console.log(
+        `🪟 Lookback candidate ${post.id}: excluded_self createdAt=${String(
+          post.createdAt
+        )}`
+      );
+      return false;
+    }
 
-    if (!post.createdAt) return true;
+    const createdAtMs = normalizeTimestampMs(post.createdAt);
 
-    const createdAtMs =
-      post.createdAt < 10_000_000_000 ? post.createdAt * 1000 : post.createdAt;
+    if (!createdAtMs) {
+      console.log(
+        `🪟 Lookback candidate ${post.id}: included_missing_createdAt createdAt=${String(
+          post.createdAt
+        )}`
+      );
+      return true;
+    }
 
-    return now - createdAtMs <= lookbackMs;
+    const ageMs = now - createdAtMs;
+    const included = ageMs <= lookbackMs;
+
+    console.log(
+      `🪟 Lookback candidate ${post.id}: ${
+        included ? 'included' : 'excluded'
+      } createdAt=${String(post.createdAt)} createdAtMs=${createdAtMs} ageMs=${ageMs}`
+    );
+
+    return included;
   });
 
   let redisIndexChanged = false;
@@ -242,13 +310,25 @@ triggers.post('/on-post-submit', async (c) => {
 
     console.log('📦 Saved duplicate case to Redis');
 
-    if (settings.actionMode === 'comment_only') {
+    if (
+      settings.actionMode === 'comment_only' &&
+      bestMatch.score >= MIN_AUTO_COMMENT_SCORE
+    ) {
       try {
         await commentOnDuplicate(newPost.id as `t3_${string}`, bestMatch);
         console.log('💬 ThreadScout auto-comment posted.');
       } catch (error) {
         console.error('❌ Failed to post auto-comment:', error);
       }
+    }
+
+    if (
+      settings.actionMode === 'comment_only' &&
+      bestMatch.score < MIN_AUTO_COMMENT_SCORE
+    ) {
+      console.log(
+        '⚠️ Auto-comment skipped: match score below safe auto-comment threshold.'
+      );
     }
 
     if (settings.actionMode === 'flag_only') {
@@ -270,13 +350,21 @@ triggers.post('/on-post-submit', async (c) => {
       title: newPost.title ?? '',
       text: newPostText,
       permalink: newPost.permalink,
-      createdAt: newPost.createdAt,
+      createdAt: newPostCreatedAtMs,
       embedding: newPostEmbedding.length > 0 ? newPostEmbedding : undefined,
     },
     ...indexedPosts,
   ];
 
   const prunedPosts = prunePostsByLookback(postsWithNewPost, lookbackMs);
+
+  if (prunedPosts.length < postsWithNewPost.length) {
+    console.log(
+      `🧹 Pruned ${
+        postsWithNewPost.length - prunedPosts.length
+      } indexed posts outside ${settings.lookbackWindow}; increasing lookback later will require those posts to be re-indexed.`
+    );
+  }
 
   const uniquePosts = Array.from(
     new Map(prunedPosts.map((post) => [post.id, post])).values()

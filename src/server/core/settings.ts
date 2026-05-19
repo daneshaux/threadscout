@@ -37,9 +37,9 @@ export async function saveThreadScoutSettings(
 export function getSimilarityThreshold(
   sensitivity: ThreadScoutSettings['sensitivity']
 ) {
-  if (sensitivity === 'high') return 15;
-  if (sensitivity === 'low') return 45;
-  return 25;
+  if (sensitivity === 'high') return 30;
+  if (sensitivity === 'low') return 60;
+  return 45; // medium
 }
 
 export function getLookbackMs(

@@ -7,6 +7,9 @@ const CASE_LIST_KEY = 'threadscout:cases';
 export async function saveDuplicateCase(caseData: DuplicateCase) {
   await redis.set(CASE_KEY(caseData.id), JSON.stringify(caseData));
 
+  await redis.set(`threadscout:postCase:${caseData.duplicatePostId}`, caseData.id);
+  await redis.set(`threadscout:postCase:${caseData.originalPostId}`, caseData.id);
+
   const existing = await redis.get(CASE_LIST_KEY);
   const ids = existing ? JSON.parse(existing) : [];
 

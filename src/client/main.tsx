@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { navigateTo } from '@devvit/web/client';
 import { createRoot } from 'react-dom/client';
 import chevronIconUrl from '../assets/chevron.svg';
 import checkedIconUrl from '../assets/checked.svg';
@@ -94,8 +95,33 @@ function SettingsToggle({ expanded, onToggle }: SettingsToggleProps) {
   );
 }
 
+function getRedditPostUrl(permalink: string) {
+  return `https://www.reddit.com${permalink}`;
+}
+
+function openRedditPost(permalink: string) {
+  if (!permalink) {
+    return;
+  }
+
+  const url = getRedditPostUrl(permalink);
+
+  try {
+    const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+
+    if (openedWindow) {
+      return;
+    }
+  } catch (error) {
+    console.error('Failed to open post in a new window:', error);
+  }
+
+  navigateTo(url);
+}
+
 type SettingsCardProps = {
   expanded: boolean;
+  savedVisible: boolean;
   sensitivity: Sensitivity;
   autoResponseEnabled: boolean;
   lookbackWindow: LookbackWindow;
@@ -117,6 +143,7 @@ const lookbackOptions: Array<{ label: string; value: LookbackWindow }> = [
 
 function SettingsCard({
   expanded,
+  savedVisible,
   sensitivity,
   autoResponseEnabled,
   lookbackWindow,
@@ -137,7 +164,6 @@ function SettingsCard({
       className={expanded ? 'settingsCard settingsCardExpanded' : 'settingsCard'}
     >
       <SettingsToggle expanded={expanded} onToggle={onToggleExpanded} />
-
       {expanded && (
         <div className="settingsContent">
           <p className="settingsDescription">
@@ -249,7 +275,19 @@ function SettingsCard({
               </p>
             </div>
           </div>
+
+          {savedVisible && (
+            <p className="settingsSavedInline" role="status">
+              Settings saved
+            </p>
+          )}
         </div>
+      )}
+
+      {!expanded && savedVisible && (
+        <p className="settingsSavedInline" role="status">
+          Settings saved
+        </p>
       )}
     </section>
   );
@@ -392,23 +430,25 @@ function DuplicateDetails({
 
             <div className="detailsLinkRow">
               {item.duplicatePermalink && (
-                <a
-                  href={`https://www.reddit.com${item.duplicatePermalink}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    openRedditPost(item.duplicatePermalink ?? '');
+                  }}
                 >
                   View flagged post
-                </a>
+                </button>
               )}
 
               {item.originalPermalink && (
-                <a
-                  href={`https://www.reddit.com${item.originalPermalink}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    openRedditPost(item.originalPermalink ?? '');
+                  }}
                 >
                   View original post
-                </a>
+                </button>
               )}
             </div>
 
@@ -456,12 +496,22 @@ function App() {
   const [lookbackOpen, setLookbackOpen] = useState(false);
   const [selectedCaseIds, setSelectedCaseIds] = useState<string[]>([]);
   const [desktopPage, setDesktopPage] = useState(1);
+  const [expandedDesktopCaseId, setExpandedDesktopCaseId] = useState<
+    string | null
+  >(null);
   const [detailCaseId, setDetailCaseId] = useState<string | null>(null);
   const [pendingRemove, setPendingRemove] =
     useState<RemoveConfirmationState | null>(null);
   const [showRemoveSuccess, setShowRemoveSuccess] = useState(false);
   const [isRemoveSuccessFading, setIsRemoveSuccessFading] = useState(false);
   const [lastRemoveCount, setLastRemoveCount] = useState(1);
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(
+    null
+  );
+  const [isActionSuccessFading, setIsActionSuccessFading] = useState(false);
+  const [urlCaseId, setUrlCaseId] = useState<string | null>(null);
+  const [showSettingsSaved, setShowSettingsSaved] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   async function loadCases() {
     try {
@@ -475,8 +525,61 @@ function App() {
     }
   }
 
+  async function loadSettings() {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+
+      const settings = data.settings;
+
+      if (!settings) return;
+
+      setSettingsSensitivity(settings.sensitivity ?? 'medium');
+      setAutoResponseEnabled(settings.actionMode === 'comment_only');
+      setLookbackWindow(settings.lookbackWindow ?? '7d');
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  }
+
+  async function saveSettings(nextSettings: {
+    sensitivity?: Sensitivity;
+    autoResponseEnabled?: boolean;
+    lookbackWindow?: LookbackWindow;
+  }) {
+    const sensitivity = nextSettings.sensitivity ?? settingsSensitivity;
+    const autoResponse =
+      nextSettings.autoResponseEnabled ?? autoResponseEnabled;
+    const lookback = nextSettings.lookbackWindow ?? lookbackWindow;
+
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sensitivity,
+          actionMode: autoResponse ? 'comment_only' : 'flag_only',
+          lookbackWindow: lookback,
+        }),
+      });
+
+      if (!res.ok) {
+        console.error('Failed to save settings:', await res.text());
+      }
+
+      setShowSettingsSaved(true);
+
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
+  }
+
   async function runAction(id: string, action: CaseAction) {
     setWorkingCaseId(id);
+    setActionSuccessMessage(null);
+    setIsActionSuccessFading(false);
 
     try {
       const res = await fetch(`/api/cases/${id}/${action}`, {
@@ -486,6 +589,14 @@ function App() {
       if (!res.ok) {
         console.error(`Action failed: ${action}`, await res.text());
         return;
+      }
+
+      if (action === 'comment-redirect') {
+        setActionSuccessMessage('Comment posted successfully');
+      }
+
+      if (action === 'ignore') {
+        setActionSuccessMessage('Case ignored');
       }
 
       await loadCases();
@@ -500,6 +611,8 @@ function App() {
     if (action === 'remove') {
       setShowRemoveSuccess(false);
       setIsRemoveSuccessFading(false);
+      setActionSuccessMessage(null);
+      setIsActionSuccessFading(false);
       setPendingRemove({ kind: 'single', id });
       return;
     }
@@ -513,6 +626,9 @@ function App() {
     }
 
     setWorkingCaseId('selected');
+    setActionSuccessMessage(null);
+    setIsActionSuccessFading(false);
+    let succeededAny = false;
 
     try {
       for (const id of selectedCaseIds) {
@@ -522,7 +638,17 @@ function App() {
 
         if (!res.ok) {
           console.error(`Action failed: ${action}`, await res.text());
+        } else {
+          succeededAny = true;
         }
+      }
+
+      if (succeededAny && action === 'comment-redirect') {
+        setActionSuccessMessage('Comment posted successfully');
+      }
+
+      if (succeededAny && action === 'ignore') {
+        setActionSuccessMessage('Case ignored');
       }
 
       setSelectedCaseIds([]);
@@ -542,6 +668,8 @@ function App() {
     if (action === 'remove') {
       setShowRemoveSuccess(false);
       setIsRemoveSuccessFading(false);
+      setActionSuccessMessage(null);
+      setIsActionSuccessFading(false);
       setPendingRemove({ kind: 'bulk', ids: [...selectedCaseIds] });
       return;
     }
@@ -578,6 +706,8 @@ function App() {
         setLastRemoveCount(idsToRemove.length);
         setIsRemoveSuccessFading(false);
         setShowRemoveSuccess(true);
+        setActionSuccessMessage(null);
+        setIsActionSuccessFading(false);
         setSelectedCaseIds((current) =>
           current.filter((id) => !idsToRemove.includes(id))
         );
@@ -597,8 +727,28 @@ function App() {
   }
 
   useEffect(() => {
-    loadCases();
-  }, []);
+  const params = new URLSearchParams(window.location.search);
+  const caseIdFromUrl = params.get('caseId');
+
+  if (caseIdFromUrl) {
+    console.log('🔗 Found caseId in URL:', caseIdFromUrl);
+    setUrlCaseId(caseIdFromUrl);
+  }
+
+  loadCases();
+  loadSettings();
+}, []);
+
+  useEffect(() => {
+    if (!urlCaseId || cases.length === 0) return;
+
+    const match = cases.find((c) => c.id === urlCaseId);
+
+    if (match) {
+      console.log('🎯 Auto-opening case from URL:', match.id);
+      setDetailCaseId(match.id);
+    }
+  }, [cases, urlCaseId]);
 
   useEffect(() => {
     if (!showRemoveSuccess) {
@@ -620,7 +770,48 @@ function App() {
     };
   }, [showRemoveSuccess]);
 
+  useEffect(() => {
+    if (!actionSuccessMessage) {
+      return undefined;
+    }
+
+    const fadeTimer = window.setTimeout(() => {
+      setIsActionSuccessFading(true);
+    }, 4600);
+
+    const hideTimer = window.setTimeout(() => {
+      setActionSuccessMessage(null);
+      setIsActionSuccessFading(false);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, [actionSuccessMessage]);
+
+  useEffect(() => {
+    if (!showSettingsSaved) return;
+
+    const timer = setTimeout(() => {
+      setShowSettingsSaved(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [showSettingsSaved]);
+
   const pendingCases = cases.filter((item) => item.status === 'pending');
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredPendingCases =
+    normalizedSearchQuery.length === 0
+      ? pendingCases
+      : pendingCases.filter((item) =>
+          [
+            item.duplicateTitle,
+            item.originalTitle,
+            item.aiExplanation ?? '',
+          ].some((value) => value.toLowerCase().includes(normalizedSearchQuery))
+        );
 
   const averageSimilarity =
     pendingCases.length === 0
@@ -633,14 +824,14 @@ function App() {
   const desktopRowsPerPage = 4;
   const desktopPageCount = Math.max(
     1,
-    Math.ceil(pendingCases.length / desktopRowsPerPage)
+    Math.ceil(filteredPendingCases.length / desktopRowsPerPage)
   );
 
   useEffect(() => {
     setDesktopPage((current) => Math.min(current, desktopPageCount));
   }, [desktopPageCount]);
 
-  const desktopPageCases = pendingCases.slice(
+  const desktopPageCases = filteredPendingCases.slice(
     (desktopPage - 1) * desktopRowsPerPage,
     desktopPage * desktopRowsPerPage
   );
@@ -666,6 +857,7 @@ function App() {
 
         <SettingsCard
           expanded={settingsExpanded}
+          savedVisible={showSettingsSaved}
           sensitivity={settingsSensitivity}
           autoResponseEnabled={autoResponseEnabled}
           lookbackWindow={lookbackWindow}
@@ -673,9 +865,21 @@ function App() {
           onToggleExpanded={() => {
             setSettingsExpanded((current) => !current);
           }}
-          onSensitivityChange={setSettingsSensitivity}
-          onAutoResponseChange={setAutoResponseEnabled}
-          onLookbackChange={setLookbackWindow}
+          onSensitivityChange={(value) => {
+            setSettingsSensitivity(value);
+            saveSettings({ sensitivity: value });
+          }}
+
+          onAutoResponseChange={(value) => {
+            setAutoResponseEnabled(value);
+            saveSettings({ autoResponseEnabled: value });
+          }}
+
+          onLookbackChange={(value) => {
+            setLookbackWindow(value);
+            saveSettings({ lookbackWindow: value });
+          }}
+
           onLookbackOpenChange={setLookbackOpen}
         />
       </section>
@@ -709,6 +913,13 @@ function App() {
         />
       )}
 
+      {actionSuccessMessage && (
+        <SuccessBanner
+          isFading={isActionSuccessFading}
+          message={actionSuccessMessage}
+        />
+      )}
+
       <section
         className={
           !loading && pendingCases.length === 0
@@ -730,181 +941,220 @@ function App() {
               <div className="desktopControlsRight">
                 <label className="desktopSearchControl">
                   <img src={searchIconUrl} alt="" />
-                  <span>Search</span>
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    placeholder="Search"
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setDesktopPage(1);
+                      setExpandedDesktopCaseId(null);
+                    }}
+                  />
                 </label>
-
-                <button className="desktopSortButton" type="button">
-                  <span>Sort by</span>
-                  <img src={chevronIconUrl} alt="" />
-                </button>
               </div>
             </div>
 
-            <table className="desktopCasesTable">
-              <thead>
-                <tr>
-                  <th scope="col">
-                    <label className="desktopCheckboxHeader">
-                      <input
-                        type="checkbox"
-                        checked={allVisibleCasesSelected}
-                        onChange={(event) => {
-                          const visibleIds = desktopPageCases.map((item) => item.id);
-                          setSelectedCaseIds(
-                            event.target.checked
-                              ? Array.from(
-                                  new Set([...selectedCaseIds, ...visibleIds])
-                                )
-                              : selectedCaseIds.filter(
-                                  (id) => !visibleIds.includes(id)
-                                )
-                          );
-                        }}
-                      />
-                      <img
-                        className="desktopCheckboxIcon"
-                        src={
-                          allVisibleCasesSelected
-                            ? checkedIconUrl
-                            : uncheckedIconUrl
-                        }
-                        alt=""
-                      />
-                      <span>Duplicate post</span>
-                    </label>
-                  </th>
-                  <th scope="col">Original post</th>
-                  <th scope="col">Match %</th>
-                  <th scope="col">Explanation</th>
-                </tr>
-              </thead>
+            {filteredPendingCases.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <>
+                <table className="desktopCasesTable">
+                  <thead>
+                    <tr>
+                      <th scope="col">
+                        <label className="desktopCheckboxHeader">
+                          <input
+                            type="checkbox"
+                            checked={allVisibleCasesSelected}
+                            onChange={(event) => {
+                              const visibleIds = desktopPageCases.map((item) => item.id);
+                              setSelectedCaseIds(
+                                event.target.checked
+                                  ? Array.from(
+                                      new Set([...selectedCaseIds, ...visibleIds])
+                                    )
+                                  : selectedCaseIds.filter(
+                                      (id) => !visibleIds.includes(id)
+                                    )
+                              );
+                            }}
+                          />
+                          <img
+                            className="desktopCheckboxIcon"
+                            src={
+                              allVisibleCasesSelected
+                                ? checkedIconUrl
+                                : uncheckedIconUrl
+                            }
+                            alt=""
+                          />
+                          <span>Duplicate post</span>
+                        </label>
+                      </th>
+                      <th scope="col">Original post</th>
+                      <th scope="col">Match %</th>
+                      <th scope="col">Explanation</th>
+                    </tr>
+                  </thead>
 
-              <tbody>
-                {desktopPageCases.map((item) => {
-                  const similarityScore = Math.round(item.similarityScore);
-                  const isSelected = selectedCaseIds.includes(item.id);
+                  <tbody>
+                    {desktopPageCases.map((item, itemIndex) => {
+                      const similarityScore = Math.round(item.similarityScore);
+                      const isSelected = selectedCaseIds.includes(item.id);
+                      const isExpanded = expandedDesktopCaseId === item.id;
+                      const rowClassName =
+                        itemIndex % 2 === 0
+                          ? 'desktopCaseRow desktopCaseRowOdd'
+                          : 'desktopCaseRow desktopCaseRowEven';
 
-                  return (
-                    <tr key={item.id}>
-                      <td>
-                        <div className="desktopDuplicateCell">
-                          <label className="desktopCheckboxControl">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(event) => {
-                                setSelectedCaseIds((current) =>
-                                  event.target.checked
-                                    ? [...current, item.id]
-                                    : current.filter((id) => id !== item.id)
+                      return (
+                        <tr className={rowClassName} key={item.id}>
+                          <td>
+                            <div className="desktopDuplicateCell">
+                              <label className="desktopCheckboxControl">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(event) => {
+                                    setSelectedCaseIds((current) =>
+                                      event.target.checked
+                                        ? [...current, item.id]
+                                        : current.filter((id) => id !== item.id)
+                                    );
+                                  }}
+                                  aria-label={`Select ${item.duplicateTitle}`}
+                                />
+                                <img
+                                  className="desktopCheckboxIcon"
+                                  src={isSelected ? checkedIconUrl : uncheckedIconUrl}
+                                  alt=""
+                                />
+                              </label>
+                              {item.duplicatePermalink ? (
+                                <button
+                                  className="desktopPostLink"
+                                  type="button"
+                                  onClick={() => {
+                                    openRedditPost(item.duplicatePermalink ?? '');
+                                  }}
+                                >
+                                  {item.duplicateTitle}
+                                </button>
+                              ) : (
+                                <span>{item.duplicateTitle}</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {item.originalPermalink ? (
+                              <button
+                                className="desktopPostLink"
+                                type="button"
+                                onClick={() => {
+                                  openRedditPost(item.originalPermalink ?? '');
+                                }}
+                              >
+                                {item.originalTitle}
+                              </button>
+                            ) : (
+                              <span>{item.originalTitle}</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={getMatchBadgeClass(similarityScore)}>
+                              {similarityScore}% match
+                            </span>
+                          </td>
+                          <td>
+                            <p
+                              className={
+                                isExpanded
+                                  ? 'desktopExplanationText desktopExplanationTextExpanded'
+                                  : 'desktopExplanationText'
+                              }
+                            >
+                              {item.aiExplanation ? `🤖 ${item.aiExplanation}` : ''}
+                            </p>
+                            <button
+                              className="desktopDetailsToggle"
+                              type="button"
+                              aria-expanded={isExpanded}
+                              onClick={() => {
+                                setExpandedDesktopCaseId((current) =>
+                                  current === item.id ? null : item.id
                                 );
                               }}
-                              aria-label={`Select ${item.duplicateTitle}`}
-                            />
-                            <img
-                              className="desktopCheckboxIcon"
-                              src={isSelected ? checkedIconUrl : uncheckedIconUrl}
-                              alt=""
-                            />
-                          </label>
-                          {item.duplicatePermalink ? (
-                            <a
-                              href={`https://www.reddit.com${item.duplicatePermalink}`}
-                              target="_blank"
-                              rel="noreferrer"
                             >
-                              {item.duplicateTitle}
-                            </a>
-                          ) : (
-                            <span>{item.duplicateTitle}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {item.originalPermalink ? (
-                          <a
-                            href={`https://www.reddit.com${item.originalPermalink}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {item.originalTitle}
-                          </a>
-                        ) : (
-                          <span>{item.originalTitle}</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className={getMatchBadgeClass(similarityScore)}>
-                          {similarityScore}% match
-                        </span>
-                      </td>
-                      <td>
-                        <p className="desktopExplanationText">
-                          {item.aiExplanation ? `🤖 ${item.aiExplanation}` : ''}
-                        </p>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                              {isExpanded ? 'Hide details' : 'View more'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
-            <div className="desktopGridFooter">
-              <div className="desktopPagination">
-                <button
-                  type="button"
-                  aria-label="Previous page"
-                  disabled={desktopPage === 1}
-                  onClick={() => {
-                    setDesktopPage((current) => Math.max(1, current - 1));
-                  }}
-                >
-                  <img src={chevronIconUrl} alt="" />
-                </button>
-                <span>
-                  Page {desktopPage} of {desktopPageCount}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Next page"
-                  disabled={desktopPage === desktopPageCount}
-                  onClick={() => {
-                    setDesktopPage((current) =>
-                      Math.min(desktopPageCount, current + 1)
-                    );
-                  }}
-                >
-                  <img src={chevronIconUrl} alt="" />
-                </button>
-              </div>
+                <div className="desktopGridFooter">
+                  <div className="desktopPagination">
+                    <button
+                      type="button"
+                      aria-label="Previous page"
+                      disabled={desktopPage === 1}
+                      onClick={() => {
+                        setExpandedDesktopCaseId(null);
+                        setDesktopPage((current) => Math.max(1, current - 1));
+                      }}
+                    >
+                      <img src={chevronIconUrl} alt="" />
+                    </button>
+                    <span>
+                      Page {desktopPage} of {desktopPageCount}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Next page"
+                      disabled={desktopPage === desktopPageCount}
+                      onClick={() => {
+                        setExpandedDesktopCaseId(null);
+                        setDesktopPage((current) =>
+                          Math.min(desktopPageCount, current + 1)
+                        );
+                      }}
+                    >
+                      <img src={chevronIconUrl} alt="" />
+                    </button>
+                  </div>
 
-              <div className="desktopBulkActions">
-                <button
-                  className="commentAction"
-                  type="button"
-                  disabled={selectedActionsDisabled}
-                  onClick={() => handleSelectedAction('comment-redirect')}
-                >
-                  Comment as mod
-                </button>
-                <button
-                  className="ignoreAction"
-                  type="button"
-                  disabled={selectedActionsDisabled}
-                  onClick={() => handleSelectedAction('ignore')}
-                >
-                  Ignore
-                </button>
-                <button
-                  className="removeAction"
-                  type="button"
-                  disabled={selectedActionsDisabled}
-                  onClick={() => handleSelectedAction('remove')}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
+                  <div className="desktopBulkActions">
+                    <button
+                      className="commentAction"
+                      type="button"
+                      disabled={selectedActionsDisabled}
+                      onClick={() => handleSelectedAction('comment-redirect')}
+                    >
+                      Comment as mod
+                    </button>
+                    <button
+                      className="ignoreAction"
+                      type="button"
+                      disabled={selectedActionsDisabled}
+                      onClick={() => handleSelectedAction('ignore')}
+                    >
+                      Ignore
+                    </button>
+                    <button
+                      className="removeAction"
+                      type="button"
+                      disabled={selectedActionsDisabled}
+                      onClick={() => handleSelectedAction('remove')}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         )}
       </section>
@@ -932,17 +1182,17 @@ function App() {
 
       <section
         className={
-          !loading && pendingCases.length === 0
+          !loading && filteredPendingCases.length === 0
             ? 'caseList caseListEmpty'
             : 'caseList'
         }
       >
         {loading ? (
           <div className="loadingState">Loading duplicate cases…</div>
-        ) : pendingCases.length === 0 ? (
+        ) : filteredPendingCases.length === 0 ? (
           <EmptyState />
         ) : (
-          pendingCases.map((item) => {
+          filteredPendingCases.map((item) => {
             const isWorking = workingCaseId === item.id;
             const similarityScore = Math.round(item.similarityScore);
             const isConfirmingRemove =
@@ -1002,24 +1252,26 @@ function App() {
 
                 <div className="linkRow">
                   {item.duplicatePermalink && (
-                    <a
-                      href={`https://www.reddit.com${item.duplicatePermalink}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openRedditPost(item.duplicatePermalink ?? '');
+                      }}
                     >
                       View flagged post
-                    </a>
+                    </button>
                   )}
 
                   {item.originalPermalink && (
-                    <a
-                      href={`https://www.reddit.com${item.originalPermalink}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openRedditPost(item.originalPermalink ?? '');
+                      }}
                     >
                       <span className="desktopLinkText">View original</span>
                       <span className="mobileLinkText">View original post</span>
-                    </a>
+                    </button>
                   )}
                 </div>
 

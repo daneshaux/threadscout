@@ -42,6 +42,22 @@
         "forUserType": "moderator",
         "location": ["subreddit"],
         "endpoint": "/internal/menu/open-dashboard"
+      },
+      {
+        "label": "View ThreadScout match",
+        "description": "Check whether this post has a ThreadScout duplicate match.",
+        "forUserType": "moderator",
+        "location": ["post"],
+        "endpoint": "/internal/menu/view-threadscout-match",
+        "postFilter": "none"
+      },
+      {
+        "label": "Open ThreadScout dashboard",
+        "description": "Open the ThreadScout dashboard to review this match.",
+        "forUserType": "moderator",
+        "location": ["post"],
+        "endpoint": "/internal/menu/open-threadscout-case",
+        "postFilter": "none"
       }
     ]
   },

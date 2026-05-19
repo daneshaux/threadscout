@@ -172,3 +172,170 @@ menu.post('/open-dashboard', async (c) => {
     });
   }
 });
+
+menu.post('/view-threadscout-match', async (c) => {
+  const body = await c.req.json();
+
+  console.log('🔎 View ThreadScout match body:', body);
+
+  const postId =
+    body?.post?.id ??
+    body?.postId ??
+    body?.target?.id ??
+    body?.thingId ??
+    body?.targetId;
+
+  if (!postId) {
+    return c.json({
+      showToast: 'No post ID found. Check logs.',
+    });
+  }
+
+  console.log('⚡ Checking ThreadScout match for:', postId);
+
+  try {
+    let caseId = await redis.get(`threadscout:postCase:${postId}`);
+    let match: any = null;
+
+    if (caseId) {
+      const rawCase = await redis.get(`threadscout:case:${caseId}`);
+      match = rawCase ? JSON.parse(rawCase) : null;
+    }
+
+    // Fallback for older cases created before postCase index existed
+    if (!match) {
+      console.log('🔁 No fast index found. Falling back to case scan.');
+
+      const idsRaw = await redis.get('threadscout:cases');
+      const ids = idsRaw ? JSON.parse(idsRaw) : [];
+
+      const cases = await Promise.all(
+        ids.map(async (id: string) => {
+          const raw = await redis.get(`threadscout:case:${id}`);
+          return raw ? JSON.parse(raw) : null;
+        })
+      );
+
+      match = cases.find(
+        (caseData: any) =>
+          caseData &&
+          (caseData.duplicatePostId === postId ||
+            caseData.originalPostId === postId)
+      );
+
+      // Backfill index so next click is fast
+      if (match) {
+        await redis.set(`threadscout:postCase:${match.duplicatePostId}`, match.id);
+        await redis.set(`threadscout:postCase:${match.originalPostId}`, match.id);
+
+        console.log('🧠 Backfilled postCase index for:', match.id);
+      }
+    }
+
+    if (!match) {
+      return c.json({
+        showToast: 'No duplicate match found.',
+      });
+    }
+
+    console.log('🎯 Match found:', match);
+
+    return c.json({
+      showToast: `Match found: ${match.similarityScore}% — view dashboard for details`,
+    });
+  } catch (error) {
+    console.error('❌ ThreadScout match lookup failed:', error);
+
+    return c.json({
+      showToast: 'Error checking ThreadScout match.',
+    });
+  }
+});
+
+menu.post('/open-threadscout-case', async (c) => {
+  const body = await c.req.json();
+
+  console.log('🧭 Open ThreadScout case body:', body);
+
+  const postId =
+    body?.post?.id ??
+    body?.postId ??
+    body?.target?.id ??
+    body?.thingId ??
+    body?.targetId;
+
+  if (!postId) {
+    return c.json({
+      showToast: 'No post ID found. Check logs.',
+    });
+  }
+
+  try {
+    let caseId = await redis.get(`threadscout:postCase:${postId}`);
+    let match: any = null;
+
+    if (caseId) {
+      const rawCase = await redis.get(`threadscout:case:${caseId}`);
+      match = rawCase ? JSON.parse(rawCase) : null;
+    }
+
+    // Fallback for older cases created before postCase index existed
+    if (!match) {
+      console.log('🔁 No fast index found. Falling back to case scan.');
+
+      const idsRaw = await redis.get('threadscout:cases');
+      const ids = idsRaw ? JSON.parse(idsRaw) : [];
+
+      const cases = await Promise.all(
+        ids.map(async (id: string) => {
+          const raw = await redis.get(`threadscout:case:${id}`);
+          return raw ? JSON.parse(raw) : null;
+        })
+      );
+
+      match = cases.find(
+        (caseData: any) =>
+          caseData &&
+          (caseData.duplicatePostId === postId ||
+            caseData.originalPostId === postId)
+      );
+
+      if (match) {
+        await redis.set(`threadscout:postCase:${match.duplicatePostId}`, match.id);
+        await redis.set(`threadscout:postCase:${match.originalPostId}`, match.id);
+
+        console.log('🧠 Backfilled postCase index for:', match.id);
+      }
+    }
+
+    if (!match) {
+      return c.json({
+        showToast: 'No duplicate match found.',
+      });
+    }
+
+    const subredditName = match.subredditName ?? 'threadscout_dev';
+    const dashboardKey = `threadscout:${subredditName}:dashboardPostId`;
+
+    const existingPostId = await redis.get(dashboardKey);
+
+    if (!existingPostId) {
+      return c.json({
+        showToast: 'No dashboard found yet. Open ThreadScout Dashboard first.',
+      });
+    }
+
+    const cleanPostId = existingPostId.replace('t3_', '');
+
+    return c.json({
+      showToast: `Opening case: ${match.similarityScore}% match`,
+      navigateTo: `https://www.reddit.com/r/${subredditName}/comments/${cleanPostId}?caseId=${encodeURIComponent(match.id)}`,
+    });
+  } catch (error) {
+    console.error('❌ Failed to open ThreadScout case:', error);
+
+    return c.json({
+      showToast: 'Could not open ThreadScout case. Check logs.',
+    });
+  }
+});

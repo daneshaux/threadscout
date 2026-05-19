@@ -35,8 +35,11 @@ body {
 
 .headerStatsArea {
   display: flex;
+  position: relative;
+  z-index: 5;
   flex-direction: column;
   align-items: flex-start;
+  overflow: visible;
   gap: 8px;
   margin: -28px -28px 24px;
   padding: 16px 16px 0;
@@ -157,6 +160,7 @@ h1 {
 
 .settingsCard {
   width: 100%;
+  overflow: visible;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
   background: #ffffff;
@@ -197,7 +201,23 @@ h1 {
 }
 
 .settingsContent {
+  overflow: visible;
   padding: 0 16px 16px;
+}
+
+.settingsSavedInline {
+  margin: 8px 16px 24px;
+  color: #025e05;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.settingsContent .settingsSavedInline {
+  margin: 24px 0 0;
 }
 
 .settingsDescription {
@@ -214,12 +234,14 @@ h1 {
 .settingsSections {
   display: flex;
   flex-direction: column;
+  overflow: visible;
   gap: 16px;
   margin-top: 16px;
 }
 
 .settingsSection {
   display: flex;
+  overflow: visible;
   flex-direction: column;
 }
 
@@ -233,6 +255,9 @@ h1 {
 
 .settingsSectionLookback {
   display: grid;
+  position: relative;
+  z-index: 12;
+  overflow: visible;
   grid-template-columns: minmax(0, 1fr) minmax(0, auto);
   align-items: center;
   column-gap: 16px;
@@ -369,6 +394,8 @@ h1 {
 
 .lookbackDropdown {
   position: relative;
+  z-index: 12;
+  overflow: visible;
   width: 100%;
   margin-top: 0;
 }
@@ -409,7 +436,7 @@ h1 {
   top: 100%;
   right: 0;
   left: 0;
-  z-index: 10;
+  z-index: 40;
   overflow: hidden;
   margin-top: 4px;
   border: 1px solid #e5dff1;
@@ -688,6 +715,10 @@ h1 {
     color: #ece2ff;
   }
 
+  .settingsSavedInline {
+    color: #64b366;
+  }
+
   .emptyState {
     border-color: #2e243e;
     background: #171121;
@@ -778,6 +809,8 @@ h1 {
   }
 
   .caseList .linkRow a,
+  .caseList .linkRow button,
+  .mobileDetailsView .detailsLinkRow button,
   .mobileDetailsView .detailsLinkRow a {
     color: #80b2c9;
   }
@@ -904,6 +937,11 @@ body:is(.dark, [data-theme='dark']) .settingsCardExpanded .sensitivityLabels {
   color: #ece2ff;
 }
 
+:is(.dark, [data-theme='dark']) .settingsSavedInline,
+body:is(.dark, [data-theme='dark']) .settingsSavedInline {
+  color: #64b366;
+}
+
 :is(.dark, [data-theme='dark']) .emptyState,
 body:is(.dark, [data-theme='dark']) .emptyState {
   border-color: #2e243e;
@@ -1021,9 +1059,16 @@ body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsAiExplanation p {
 }
 
 :is(.dark, [data-theme='dark']) .caseList .linkRow a,
+:is(.dark, [data-theme='dark']) .caseList .linkRow button,
 :is(.dark, [data-theme='dark']) .mobileDetailsView .detailsLinkRow a,
+:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsLinkRow button,
 body:is(.dark, [data-theme='dark']) .caseList .linkRow a,
+body:is(.dark, [data-theme='dark']) .caseList .linkRow button,
 body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsLinkRow a {
+  color: #80b2c9;
+}
+
+body:is(.dark, [data-theme='dark']) .mobileDetailsView .detailsLinkRow button {
   color: #80b2c9;
 }
 
@@ -1136,6 +1181,7 @@ button.secondary {
 
 @media (min-width: 901px) {
   .headerStatsArea {
+    z-index: 30;
     width: auto;
     max-width: none;
     margin-top: -28px;
@@ -1204,6 +1250,8 @@ button.secondary {
 
   .desktopCaseGrid {
     display: block;
+    position: relative;
+    z-index: 1;
     margin: 24px 52px 40px;
     padding: 24px 36px;
     border: 1px solid #e0e0e0;
@@ -1234,7 +1282,7 @@ button.secondary {
   .desktopRemoveOverlay {
     position: fixed;
     inset: 0;
-    z-index: 20;
+    z-index: 100;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1243,6 +1291,8 @@ button.secondary {
   }
 
   .desktopRemoveModal {
+    position: relative;
+    z-index: 1;
     width: min(420px, 100%);
     padding: 16px;
     border: 1px solid #e0e0e0;
@@ -1297,6 +1347,25 @@ button.secondary {
   .desktopSearchControl img {
     width: 20px;
     height: 20px;
+  }
+
+  .desktopSearchControl input {
+    min-width: 0;
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
+
+  .desktopSearchControl input::placeholder {
+    color: #000000;
+    opacity: 1;
+  }
+
+  .desktopSearchControl input::-webkit-search-cancel-button {
+    appearance: none;
   }
 
   .desktopSortButton {
@@ -1371,12 +1440,21 @@ button.secondary {
     background: #f9f8fb;
   }
 
+  .desktopCasesTable tbody .desktopCaseRowOdd {
+    background: #ffffff;
+  }
+
+  .desktopCasesTable tbody .desktopCaseRowEven {
+    background: #f9f8fb;
+  }
+
   .desktopCasesTable tbody tr:last-child {
     border-bottom: 0;
   }
 
   .desktopCasesTable td {
     padding: 16px 18px;
+    text-align: left;
     vertical-align: top;
   }
 
@@ -1384,7 +1462,9 @@ button.secondary {
   .desktopDuplicateCell {
     display: flex;
     align-items: flex-start;
+    justify-content: flex-start;
     gap: 12px;
+    text-align: left;
   }
 
   .desktopCheckboxHeader {
@@ -1419,22 +1499,34 @@ button.secondary {
   }
 
   .desktopCasesTable a,
+  .desktopPostLink,
   .desktopCasesTable .desktopDuplicateCell span {
+    display: inline;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: #330c78;
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
       sans-serif;
     font-size: 14px;
     line-height: 1.25;
+    text-align: left;
     text-decoration: underline;
+    cursor: pointer;
   }
 
   .desktopCasesTable .desktopDuplicateCell a,
+  .desktopCasesTable .desktopDuplicateCell .desktopPostLink,
   .desktopCasesTable .desktopDuplicateCell span {
     font-weight: 600;
   }
 
   .desktopCasesTable td:nth-child(2) a,
+  .desktopCasesTable td:nth-child(2) .desktopPostLink,
   .desktopCasesTable td:nth-child(2) span {
     font-weight: 400;
   }
@@ -1483,6 +1575,32 @@ button.secondary {
     text-overflow: ellipsis;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+
+  .desktopExplanationTextExpanded {
+    display: block;
+    overflow: visible;
+    text-overflow: initial;
+    -webkit-line-clamp: unset;
+  }
+
+  .desktopDetailsToggle {
+    display: inline;
+    margin: 8px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #0070c9;
+    font-family:
+      Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: left;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .desktopGridFooter {
@@ -1587,6 +1705,10 @@ button.secondary {
     color: #ece2ff;
   }
 
+  .desktopSearchControl input::placeholder {
+    color: #ece2ff;
+  }
+
   .desktopSearchControl img,
   .desktopSortButton img,
   .desktopCheckboxIcon,
@@ -1614,7 +1736,16 @@ button.secondary {
     background: #271d38;
   }
 
+  .desktopCasesTable tbody .desktopCaseRowOdd {
+    background: #171121;
+  }
+
+  .desktopCasesTable tbody .desktopCaseRowEven {
+    background: #271d38;
+  }
+
   .desktopCasesTable a,
+  .desktopCasesTable .desktopPostLink,
   .desktopCasesTable .desktopDuplicateCell span,
   .desktopCasesTable td:nth-child(2) span {
     color: #ece2ff;
@@ -1639,6 +1770,11 @@ button.secondary {
   .desktopExplanationText,
   .desktopPagination {
     color: #ffffff;
+  }
+
+  .desktopDetailsToggle,
+  .desktopDetailsToggle {
+    color: #80b2c9;
   }
 
   .desktopBulkActions .removeAction {
@@ -1685,6 +1821,11 @@ button.secondary {
     color: #ece2ff;
   }
 
+  :is(.dark, [data-theme='dark']) .desktopSearchControl input::placeholder,
+  body:is(.dark, [data-theme='dark']) .desktopSearchControl input::placeholder {
+    color: #ece2ff;
+  }
+
   :is(.dark, [data-theme='dark']) .desktopSearchControl img,
   :is(.dark, [data-theme='dark']) .desktopSortButton img,
   :is(.dark, [data-theme='dark']) .desktopCheckboxIcon,
@@ -1720,10 +1861,22 @@ button.secondary {
     background: #271d38;
   }
 
+  :is(.dark, [data-theme='dark']) .desktopCasesTable tbody .desktopCaseRowOdd,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable tbody .desktopCaseRowOdd {
+    background: #171121;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopCasesTable tbody .desktopCaseRowEven,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable tbody .desktopCaseRowEven {
+    background: #271d38;
+  }
+
   :is(.dark, [data-theme='dark']) .desktopCasesTable a,
+  :is(.dark, [data-theme='dark']) .desktopCasesTable .desktopPostLink,
   :is(.dark, [data-theme='dark']) .desktopCasesTable .desktopDuplicateCell span,
   :is(.dark, [data-theme='dark']) .desktopCasesTable td:nth-child(2) span,
   body:is(.dark, [data-theme='dark']) .desktopCasesTable a,
+  body:is(.dark, [data-theme='dark']) .desktopCasesTable .desktopPostLink,
   body:is(.dark, [data-theme='dark']) .desktopCasesTable .desktopDuplicateCell span,
   body:is(.dark, [data-theme='dark']) .desktopCasesTable td:nth-child(2) span {
     color: #ece2ff;
@@ -1754,6 +1907,12 @@ button.secondary {
   body:is(.dark, [data-theme='dark']) .desktopExplanationText,
   body:is(.dark, [data-theme='dark']) .desktopPagination {
     color: #ffffff;
+  }
+
+  :is(.dark, [data-theme='dark']) .desktopDetailsToggle,
+  body:is(.dark, [data-theme='dark']) .desktopDetailsToggle,
+  body:is(.dark, [data-theme='dark']) .desktopDetailsToggle {
+    color: #80b2c9;
   }
 
   :is(.dark, [data-theme='dark']) .desktopBulkActions .removeAction,
@@ -1790,6 +1949,7 @@ button.secondary {
 
   .desktopCaseGrid {
     position: relative;
+    z-index: 1;
     left: 50%;
     width: 1440px;
     margin-right: 0;
@@ -1966,7 +2126,14 @@ button.secondary {
     margin-top: 24px;
   }
 
-  .detailsLinkRow a {
+  .detailsLinkRow a,
+  .detailsLinkRow button {
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: #0070c9;
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -1974,7 +2141,9 @@ button.secondary {
     font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
+    text-align: left;
     text-decoration: underline;
+    cursor: pointer;
   }
 
   .detailsActionRow {
@@ -2141,7 +2310,14 @@ button.secondary {
     margin-top: 16px;
   }
 
-  .linkRow a {
+  .linkRow a,
+  .linkRow button {
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: #0070c9;
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -2149,7 +2325,9 @@ button.secondary {
     font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
+    text-align: left;
     text-decoration: underline;
+    cursor: pointer;
   }
 
   .desktopLinkText {
@@ -2408,7 +2586,14 @@ button.secondary {
     margin-top: 16px;
   }
 
-  .linkRow a {
+  .linkRow a,
+  .linkRow button {
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: #0070c9;
     font-family:
       Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -2416,7 +2601,9 @@ button.secondary {
     font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
+    text-align: left;
     text-decoration: underline;
+    cursor: pointer;
   }
 
   .desktopLinkText {
