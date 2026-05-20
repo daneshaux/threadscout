@@ -29,14 +29,6 @@
   "menu": {
     "items": [
       {
-        "label": "ThreadScout: Test Comment",
-        "description": "Test whether ThreadScout can comment on a post.",
-        "forUserType": "moderator",
-        "location": ["post"],
-        "endpoint": "/internal/menu/test-comment",
-        "postFilter": "none"
-      },
-      {
         "label": "ThreadScout Dashboard",
         "description": "Open the ThreadScout duplicate review dashboard.",
         "forUserType": "moderator",
