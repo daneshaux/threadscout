@@ -1,0 +1,13 @@
+# ThreadScout Privacy Policy
+
+ThreadScout processes Reddit post data to help moderators detect duplicate discussions.
+
+The app may process post titles, post body text, post IDs, permalinks, subreddit names, similarity scores, moderation case statuses, and AI-generated explanations.
+
+ThreadScout stores moderation case data and indexed post data in Reddit Devvit Redis storage to support duplicate detection and dashboard review.
+
+ThreadScout may send post title/body text to the OpenAI API to generate embeddings and verify whether posts are likely duplicates.
+
+ThreadScout does not collect personal contact information, sell user data, or use data for advertising.
+
+Data is used only to provide duplicate detection and moderation support within the installed subreddit.
