@@ -10,24 +10,38 @@ import {
   saveThreadScoutSettings,
   type ThreadScoutSettings,
 } from '../core/settings';
+import { requireModerator } from '../auth';
 
 export const api = new Hono();
 
 api.get('/cases', async (c) => {
   console.log('📡 /api/cases route hit');
 
+  const auth = await requireModerator(c);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const cases = await getDuplicateCases();
+  const subredditCases = cases.filter(
+    (caseData) =>
+      caseData.subredditName.toLowerCase() === auth.subredditName.toLowerCase()
+  );
 
   return c.json({
     status: 'success',
-    count: cases.length,
-    cases,
+    count: subredditCases.length,
+    cases: subredditCases,
   });
 });
 
 api.get('/test-reddit', async (c) => {
   try {
     const subredditName = 'threadscout_dev';
+    const auth = await requireModerator(c, { subredditName });
+    if (!auth.ok) {
+      return auth.response;
+    }
 
     const posts = await reddit
       .getNewPosts({
@@ -60,6 +74,20 @@ api.get('/test-reddit', async (c) => {
 api.post('/cases/:id/ignore', async (c) => {
   const id = c.req.param('id');
 
+  const cases = await getDuplicateCases();
+  const caseData = cases.find((item) => item.id === id);
+
+  if (!caseData) {
+    return c.json({ ok: false, error: 'Case not found' }, 404);
+  }
+
+  const auth = await requireModerator(c, {
+    subredditName: caseData.subredditName,
+  });
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const updated = await updateDuplicateCaseStatus(id, 'ignored');
 
   return c.json({ ok: true, case: updated });
@@ -73,6 +101,13 @@ api.post('/cases/:id/remove', async (c) => {
 
   if (!caseData) {
     return c.json({ ok: false, error: 'Case not found' }, 404);
+  }
+
+  const auth = await requireModerator(c, {
+    subredditName: caseData.subredditName,
+  });
+  if (!auth.ok) {
+    return auth.response;
   }
 
   await reddit.remove(caseData.duplicatePostId as `t3_${string}`, false);
@@ -90,6 +125,13 @@ api.post('/cases/:id/comment-redirect', async (c) => {
 
   if (!caseData) {
     return c.json({ ok: false, error: 'Case not found' }, 404);
+  }
+
+  const auth = await requireModerator(c, {
+    subredditName: caseData.subredditName,
+  });
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const link = caseData.originalPermalink
@@ -111,6 +153,11 @@ Thanks for helping keep the community organized 💬`,
 });
 
 api.get('/settings', async (c) => {
+  const auth = await requireModerator(c);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const settings = await getThreadScoutSettings();
 
   return c.json({
@@ -121,6 +168,10 @@ api.get('/settings', async (c) => {
 
 api.post('/settings', async (c) => {
   const body = await c.req.json<ThreadScoutSettings>();
+  const auth = await requireModerator(c, { body });
+  if (!auth.ok) {
+    return auth.response;
+  }
 
   const settings: ThreadScoutSettings = {
     sensitivity: body.sensitivity,

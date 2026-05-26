@@ -32,6 +32,9 @@ type CaseAction = 'comment-redirect' | 'remove' | 'ignore';
 type Sensitivity = 'low' | 'medium' | 'high';
 type LookbackWindow = '24h' | '7d' | '30d';
 
+const MODERATOR_ONLY_MESSAGE =
+  'ThreadScout dashboard is only available to moderators of this subreddit.';
+
 type RemoveConfirmationState =
   | {
       kind: 'single';
@@ -512,10 +515,23 @@ function App() {
   const [urlCaseId, setUrlCaseId] = useState<string | null>(null);
   const [showSettingsSaved, setShowSettingsSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   async function loadCases() {
     try {
       const res = await fetch('/api/cases');
+      if (res.status === 403) {
+        setPermissionDenied(true);
+        setCases([]);
+        setSelectedCaseIds([]);
+        return;
+      }
+
+      if (!res.ok) {
+        console.error('Failed to load cases:', await res.text());
+        return;
+      }
+
       const data = await res.json();
       setCases(data.cases ?? []);
     } catch (error) {
@@ -528,6 +544,16 @@ function App() {
   async function loadSettings() {
     try {
       const res = await fetch('/api/settings');
+      if (res.status === 403) {
+        setPermissionDenied(true);
+        return;
+      }
+
+      if (!res.ok) {
+        console.error('Failed to load settings:', await res.text());
+        return;
+      }
+
       const data = await res.json();
 
       const settings = data.settings;
@@ -565,8 +591,14 @@ function App() {
         }),
       });
 
+      if (res.status === 403) {
+        setPermissionDenied(true);
+        return;
+      }
+
       if (!res.ok) {
         console.error('Failed to save settings:', await res.text());
+        return;
       }
 
       setShowSettingsSaved(true);
@@ -585,6 +617,11 @@ function App() {
       const res = await fetch(`/api/cases/${id}/${action}`, {
         method: 'POST',
       });
+
+      if (res.status === 403) {
+        setPermissionDenied(true);
+        return;
+      }
 
       if (!res.ok) {
         console.error(`Action failed: ${action}`, await res.text());
@@ -617,7 +654,7 @@ function App() {
       return;
     }
 
-    runAction(id, action);
+    void runAction(id, action);
   }
 
   async function runSelectedAction(action: CaseAction) {
@@ -636,7 +673,10 @@ function App() {
           method: 'POST',
         });
 
-        if (!res.ok) {
+        if (res.status === 403) {
+          setPermissionDenied(true);
+          return;
+        } else if (!res.ok) {
           console.error(`Action failed: ${action}`, await res.text());
         } else {
           succeededAny = true;
@@ -674,7 +714,7 @@ function App() {
       return;
     }
 
-    runSelectedAction(action);
+    void runSelectedAction(action);
   }
 
   async function confirmRemove() {
@@ -695,7 +735,10 @@ function App() {
           method: 'POST',
         });
 
-        if (!res.ok) {
+        if (res.status === 403) {
+          setPermissionDenied(true);
+          return;
+        } else if (!res.ok) {
           console.error('Action failed: remove', await res.text());
         } else {
           removedAny = true;
@@ -735,8 +778,8 @@ function App() {
     setUrlCaseId(caseIdFromUrl);
   }
 
-  loadCases();
-  loadSettings();
+  void loadCases();
+  void loadSettings();
 }, []);
 
   useEffect(() => {
@@ -831,6 +874,14 @@ function App() {
     setDesktopPage((current) => Math.min(current, desktopPageCount));
   }, [desktopPageCount]);
 
+  if (permissionDenied) {
+    return (
+      <main className="dashboard">
+        <div className="loadingState">{MODERATOR_ONLY_MESSAGE}</div>
+      </main>
+    );
+  }
+
   const desktopPageCases = filteredPendingCases.slice(
     (desktopPage - 1) * desktopRowsPerPage,
     desktopPage * desktopRowsPerPage
@@ -867,17 +918,17 @@ function App() {
           }}
           onSensitivityChange={(value) => {
             setSettingsSensitivity(value);
-            saveSettings({ sensitivity: value });
+            void saveSettings({ sensitivity: value });
           }}
 
           onAutoResponseChange={(value) => {
             setAutoResponseEnabled(value);
-            saveSettings({ autoResponseEnabled: value });
+            void saveSettings({ autoResponseEnabled: value });
           }}
 
           onLookbackChange={(value) => {
             setLookbackWindow(value);
-            saveSettings({ lookbackWindow: value });
+            void saveSettings({ lookbackWindow: value });
           }}
 
           onLookbackOpenChange={setLookbackOpen}

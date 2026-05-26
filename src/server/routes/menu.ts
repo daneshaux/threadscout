@@ -1,7 +1,19 @@
 import { Hono } from 'hono';
 import { reddit, redis } from '@devvit/web/server';
+import type { DuplicateCase } from '../../shared/types';
+import { requireModerator } from '../auth';
 
 export const menu = new Hono();
+
+type RedditListingChild = {
+  data: {
+    id: string;
+    title: string;
+    selftext?: string;
+    permalink: string;
+    created_utc: number;
+  };
+};
 
 menu.post('/test-reddit-history', async (c) => {
   const subredditName = 'threadscout_dev';
@@ -30,7 +42,7 @@ menu.post('/test-reddit-history', async (c) => {
 
     const data = await response.json();
 
-    const posts = data.data.children.map((child: any) => ({
+    const posts = data.data.children.map((child: RedditListingChild) => ({
       id: `t3_${child.data.id}`,
       title: child.data.title,
       selftext: child.data.selftext,
@@ -127,10 +139,12 @@ menu.post('/open-dashboard', async (c) => {
 
   console.log('🧭 ThreadScout dashboard menu body:', body);
 
-  const subredditName =
-    body?.subreddit?.name ??
-    body?.subredditName ??
-    'threadscout_dev';
+  const auth = await requireModerator(c, { body });
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const subredditName = auth.subredditName;
 
   const dashboardKey = `threadscout:${subredditName}:dashboardPostId`;
 
@@ -178,6 +192,11 @@ menu.post('/view-threadscout-match', async (c) => {
 
   console.log('🔎 View ThreadScout match body:', body);
 
+  const auth = await requireModerator(c, { body });
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const postId =
     body?.post?.id ??
     body?.postId ??
@@ -194,8 +213,8 @@ menu.post('/view-threadscout-match', async (c) => {
   console.log('⚡ Checking ThreadScout match for:', postId);
 
   try {
-    let caseId = await redis.get(`threadscout:postCase:${postId}`);
-    let match: any = null;
+    const caseId = await redis.get(`threadscout:postCase:${postId}`);
+    let match: DuplicateCase | null = null;
 
     if (caseId) {
       const rawCase = await redis.get(`threadscout:case:${caseId}`);
@@ -217,7 +236,7 @@ menu.post('/view-threadscout-match', async (c) => {
       );
 
       match = cases.find(
-        (caseData: any) =>
+        (caseData: DuplicateCase | null) =>
           caseData &&
           (caseData.duplicatePostId === postId ||
             caseData.originalPostId === postId)
@@ -233,6 +252,15 @@ menu.post('/view-threadscout-match', async (c) => {
     }
 
     if (!match) {
+      return c.json({
+        showToast: 'No duplicate match found.',
+      });
+    }
+
+    if (
+      typeof match.subredditName !== 'string' ||
+      match.subredditName.toLowerCase() !== auth.subredditName.toLowerCase()
+    ) {
       return c.json({
         showToast: 'No duplicate match found.',
       });
@@ -257,6 +285,11 @@ menu.post('/open-threadscout-case', async (c) => {
 
   console.log('🧭 Open ThreadScout case body:', body);
 
+  const auth = await requireModerator(c, { body });
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const postId =
     body?.post?.id ??
     body?.postId ??
@@ -271,8 +304,8 @@ menu.post('/open-threadscout-case', async (c) => {
   }
 
   try {
-    let caseId = await redis.get(`threadscout:postCase:${postId}`);
-    let match: any = null;
+    const caseId = await redis.get(`threadscout:postCase:${postId}`);
+    let match: DuplicateCase | null = null;
 
     if (caseId) {
       const rawCase = await redis.get(`threadscout:case:${caseId}`);
@@ -294,7 +327,7 @@ menu.post('/open-threadscout-case', async (c) => {
       );
 
       match = cases.find(
-        (caseData: any) =>
+        (caseData: DuplicateCase | null) =>
           caseData &&
           (caseData.duplicatePostId === postId ||
             caseData.originalPostId === postId)
@@ -314,7 +347,16 @@ menu.post('/open-threadscout-case', async (c) => {
       });
     }
 
-    const subredditName = match.subredditName ?? 'threadscout_dev';
+    if (
+      typeof match.subredditName !== 'string' ||
+      match.subredditName.toLowerCase() !== auth.subredditName.toLowerCase()
+    ) {
+      return c.json({
+        showToast: 'No duplicate match found.',
+      });
+    }
+
+    const subredditName = auth.subredditName;
     const dashboardKey = `threadscout:${subredditName}:dashboardPostId`;
 
     const existingPostId = await redis.get(dashboardKey);
