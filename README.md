@@ -19,6 +19,11 @@ ThreadScout helps moderators **identify and manage repetitive discussions** usin
 - Remove duplicates
 - Comment and redirect users
 - Review matches from post-level menu actions
+
+### Permissions
+ThreadScout is intended for subreddit moderators. Moderator dashboard data, duplicate cases, settings, and moderation actions are restricted to moderators of the installed subreddit.
+
+ThreadScout uses moderator-only menu actions and server-side permission checks before returning mod data or allowing actions such as ignoring, commenting on, or removing duplicate posts.
   
 ### Built With
 - Devvit
